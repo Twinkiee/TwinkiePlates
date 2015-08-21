@@ -274,7 +274,9 @@ function TwinkiePlates:OnLoad()
   Apollo.RegisterEventHandler("VarChange_FrameCount", "OnDebuggerUnit", self)
 
   Apollo.RegisterSlashCommand("npnp", "OnConfigure", self)
+  Apollo.RegisterEventHandler("ShowTwinkiePlatesConfigurationWnd", "OnConfigure", self)
 
+  Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
   Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
   Apollo.RegisterEventHandler("ChangeWorld", "OnChangeWorld", self)
 
@@ -1366,6 +1368,10 @@ function TwinkiePlates:OnMatrixClick(p_wndHandler, wndCtrl, nClick)
 
   _matrix[l_key] = l_valueNew
   p_wndHandler:SetSprite(_matrixButtonSprites[l_valueNew])
+end
+
+function TwinkiePlates:OnInterfaceMenuListHasLoaded()
+  Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "TwinkiePlates", {"ShowTwinkiePlatesConfigurationWnd", "", ""})
 end
 
 function TwinkiePlates:CheckMatrixIntegrity()
