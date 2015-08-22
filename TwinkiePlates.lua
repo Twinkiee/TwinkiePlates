@@ -469,7 +469,6 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, p_t
     tNameplate.casting = tNameplate.form:FindChild("BarCasting")
     tNameplate.cc = tNameplate.form:FindChild("BarCC")
     tNameplate.wndCleanseFrame = tNameplate.form:FindChild("CleanseFrame")
-    tNameplate.wndCleanseFrame:Show(false)
 
     if (not _matrix["ConfigBarIncrements"]) then
       tNameplate.health:SetFullSprite("Bar_02")
@@ -531,6 +530,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, p_t
   tNameplate.containerCastBar:Show(false)
   tNameplate.textUnitGuild:Show(false)
   tNameplate.iconArmor:Show(false)
+  tNameplate.wndCleanseFrame:Show(false)
 
   -- tNameplate.containerMain:SetText("")
   local l_heightMod = (tNameplate.hasShield and 1.3 or 1)
@@ -1038,24 +1038,24 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
   end
 end
 
-function TwinkiePlates:GetColorFlags(p_nameplate)
+function TwinkiePlates:GetColorFlags(tNameplate)
   if (_player == nil) then return end
 
-  local l_flags = SetFlag(0, p_nameplate.eDisposition)
-  local l_isFriendly = p_nameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
+  local l_flags = SetFlag(0, tNameplate.eDisposition)
+  local bIsFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
 
-  if (p_nameplate.inGroup) then l_flags = SetFlag(l_flags, F_GROUP) end
-  if (p_nameplate.pvpFlagged) then l_flags = SetFlag(l_flags, F_PVP) end
-  if (p_nameplate.lowHealth) then l_flags = SetFlag(l_flags, F_LOW_HP) end
+  if (tNameplate.inGroup) then l_flags = SetFlag(l_flags, F_GROUP) end
+  if (tNameplate.pvpFlagged) then l_flags = SetFlag(l_flags, F_PVP) end
+  if (tNameplate.lowHealth) then l_flags = SetFlag(l_flags, F_LOW_HP) end
 
   if (_matrix["ConfigAggroIndication"]) then
-    if (p_nameplate.inCombat and not p_nameplate.isPlayer and p_nameplate.unit:GetTarget() ~= _player) then
+    if (tNameplate.inCombat and not tNameplate.isPlayer and tNameplate.unit:GetTarget() ~= _player) then
       l_flags = SetFlag(l_flags, F_AGGRO)
     end
   end
 
-  if (_matrix["ConfigCleanseIndicator"] and l_isFriendly) then
-    local l_debuffs = p_nameplate.unit:GetBuffs()["arHarmful"]
+  if (_matrix["ConfigCleanseIndicator"] and bIsFriendly) then
+    local l_debuffs = tNameplate.unit:GetBuffs()["arHarmful"]
     for i = 1, #l_debuffs do
       if (l_debuffs[i]["splEffect"]:GetClass() == Spell.CodeEnumSpellClass.DebuffDispellable) then
         l_flags = SetFlag(l_flags, F_CLEANSE)
