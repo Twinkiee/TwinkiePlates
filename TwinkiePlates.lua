@@ -405,12 +405,12 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, p_t
   if (p_target) then
     local l_source = self.nameplates[unitNameplateOwner:GetId()]
     tNameplate.ccActiveID = l_source and l_source.ccActiveID or -1
-    tNameplate.ccDuration = l_source and l_source.ccDuration or 0
+    tNameplate.nCcDuration = l_source and l_source.nCcDuration or 0
     tNameplate.ccDurationMax = l_source and l_source.ccDurationMax or 0
 
   else
     tNameplate.ccActiveID = -1
-    tNameplate.ccDuration = 0
+    tNameplate.nCcDuration = 0
     tNameplate.ccDurationMax = 0
   end
 
@@ -840,39 +840,6 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   end
 end
 
---[[
-function TwinkiePlates:UpdateAnchoring(tNameplate, nCodeEnumFloaterLocation)
-  local tAnchorUnit = tNameplate.unit:IsMounted() and tNameplate.unit:GetUnitMount() or tNameplate.unit
-  local bReposition = false
-
-  if (_matrix["ConfigDynamicVPos"] and not tNameplate.isPlayer) then
-
-    if (self.nameplacer) then
-      local tNameplatePositionSetting = self.nameplacer:GetUnitNameplatePositionSetting(tNameplate.unit:GetName())
-      local nCodeEnumFloaterLocation
-      if (tNameplatePositionSetting and tNameplatePositionSetting["nAnchorId"]) then
-        nCodeEnumFloaterLocation = tNameplatePositionSetting["nAnchorId"]
-        tNameplate.form:SetUnit(tAnchorUnit, nCodeEnumFloaterLocation)
-        return
-      end
-    end
-
-    local nOverhead = tNameplate.unit:GetOverheadAnchor()
-    if (nOverhead ~= nil) then
-      bReposition = not tNameplate.occluded and nOverhead.y < 25
-    end
-  end
-
-  -- Print ("//////////////// nCodeEnumFloaterLocation: " .. tostring(nCodeEnumFloaterLocation))
-  if (nCodeEnumFloaterLocation) then
-
-    Print("\\\\\\\\\\\\\\\\\ nCodeEnumFloaterLocation: " .. tostring(nCodeEnumFloaterLocation))
-    tNameplate.form:SetUnit(tAnchorUnit, nCodeEnumFloaterLocation)
-  else
-    tNameplate.form:SetUnit(tAnchorUnit, bReposition and 0 or 1)
-  end
-end
-]]
 
 function TwinkiePlates:UpdateMainContainer(p_nameplate)
   local l_health = p_nameplate.unit:GetHealth();
@@ -1182,25 +1149,6 @@ function TwinkiePlates:OnTargetUnitChanged(unitTarget)
   _flags.opacity = 1
   _targetNP.form:Show(unitTarget ~= nil, true)
 
-
-  --[[
-  if (_targetNP and not _targetNP.nCleansePixieId) then
-    local nPixieId = _targetNP.form:FindChild("CleanseFrame"):AddPixie({
-      bLine = false,
-      strSprite = "NPrimeNameplates_Sprites:Cleanse",
-      cr = _typeColor["Cleanse"],
-      loc = {
-        fPoints = { 0, 0, 1, 1 },
-        --nOffsets = { -56, 0, 56, 25 },
-        flagsText = {
-          DT_CENTER = true,
-          DT_VCENTER = true
-        }
-      }
-    })
-    _targetNP.nCleansePixieId = nPixieId
-  end
-  ]]
 end
 
 function TwinkiePlates:UpdateLegacyTargetPixie()
@@ -1244,7 +1192,7 @@ function TwinkiePlates:OnPlayerMainTextChanged()
 end
 
 function TwinkiePlates:OnNameplatePositionSettingChanged(strUnitName, tNameplatePositionSetting)
-  Print("[nPrimeNameplates] OnNameplatePositionSettingChanged; strUnitName: " .. strUnitName .. "; tNameplatePositionSetting: " .. table.tostring(tNameplatePositionSetting))
+  -- Print("[nPrimeNameplates] OnNameplatePositionSettingChanged; strUnitName: " .. strUnitName .. "; tNameplatePositionSetting: " .. table.tostring(tNameplatePositionSetting))
 
   if (not tNameplatePositionSetting or (not tNameplatePositionSetting["nAnchorId"] and not tNameplatePositionSetting["nVerticalOffset"])) then return end
 
@@ -1262,7 +1210,7 @@ function TwinkiePlates:OnNameplatePositionSettingChanged(strUnitName, tNameplate
 
     if (tNameplate.unit:GetName() == strUnitName) then
 
-      Print("!!!!!!!!!!!!!!!!!! nameplate.unit:GetName():" .. tNameplate.unit:GetName())
+      -- Print("!!!!!!!!!!!!!!!!!! nameplate.unit:GetName():" .. tNameplate.unit:GetName())
 
       if (tNameplatePositionSetting["nAnchorId"]) then
         self:UpdateAnchoring(tNameplate, tNameplatePositionSetting["nAnchorId"])
@@ -1576,22 +1524,25 @@ function TwinkiePlates:RegisterCC(p_nameplate, p_ccID)
   -- end
 end
 
-function TwinkiePlates:UpdateCC(p_nameplate)
-  p_nameplate.ccDuration = p_nameplate.unit:GetCCStateTimeRemaining(p_nameplate.ccActiveID) or 0
-  local l_show = p_nameplate.ccActiveID ~= -1
-  if (p_nameplate.containerCC:IsVisible() ~= l_show) then
-    p_nameplate.containerCC:Show(l_show)
-    p_nameplate.rearrange = true
-  end
-  if (p_nameplate.ccDuration <= 0) then
-    p_nameplate.ccActiveID = -1
-    p_nameplate.containerCC:Show(false)
-    p_nameplate.rearrange = true
-  elseif (p_nameplate.form:IsVisible()) then
-    if (p_nameplate.ccDuration > p_nameplate.ccDurationMax) then
-      p_nameplate.ccDurationMax = p_nameplate.ccDuration
+function TwinkiePlates:UpdateCC(tNameplate)
+  tNameplate.nCcDuration = tNameplate.unit:GetCCStateTimeRemaining(tNameplate.ccActiveID) or 0
+  local bShowCcBar = tNameplate.ccActiveID ~= -1 and tNameplate.nCcDuration > 0
+  if (tNameplate.containerCC:IsVisible() ~= bShowCcBar) then
+
+    -- CC status expired
+    if (not bShowCcBar) then
+      tNameplate.ccActiveID = -1
     end
-    self:SetProgressBar(p_nameplate.cc, p_nameplate.ccDuration, p_nameplate.ccDurationMax)
+
+    tNameplate.containerCC:Show(bShowCcBar)
+    tNameplate.rearrange = true
+  end
+
+  if (tNameplate.form:IsVisible()) then
+    if (tNameplate.nCcDuration > tNameplate.ccDurationMax) then
+      tNameplate.ccDurationMax = tNameplate.ccDuration
+    end
+    self:SetProgressBar(tNameplate.cc, tNameplate.ccDuration, tNameplate.ccDurationMax)
   end
 end
 
