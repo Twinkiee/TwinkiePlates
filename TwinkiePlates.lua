@@ -116,11 +116,15 @@ local _matrixFilters =
 {
   "Self",
   "Target",
-  "Friendly",
-  "Neutral",
-  "Hostile",
   "Group",
-  "Other",
+  "FriendlyPc",
+  "FriendlyNpc",
+  "NeutralPc",
+  "NeutralNpc",
+  "HostilePc",
+  "HostileNpc",
+
+  -- "Other",
 }
 
 local _matrixButtonSprites =
@@ -1394,8 +1398,8 @@ function TwinkiePlates:DistributeMatrixColumns(p_categoryWindow, p_categoryName)
     local l_right = l_columns * i
     local l_button = p_categoryWindow:FindChild(filter)
 
-    l_button:SetAnchorPoints(l_left, 0, l_right, 1)
-    l_button:SetAnchorOffsets(1, 1, -1, -1)
+    -- l_button:SetAnchorPoints(l_left, 0, l_right, 1)
+    -- l_button:SetAnchorOffsets(1, 1, -1, -1)
 
     if (p_categoryName ~= nil) then
       local l_value = _matrix[p_categoryName .. filter] or 0
