@@ -1048,10 +1048,10 @@ function TwinkiePlates:GetDispositionTo(unitSubject, unitObject)
   return unitSubject:GetDispositionTo(unitObject)
 end
 
-function TwinkiePlates:GetMatrixFlags(p_nameplate)
+function TwinkiePlates:GetMatrixFlags(tNameplate)
   local l_flags = 0
-  local l_inCombat = p_nameplate.inCombat
-  local l_type = p_nameplate.targetNP and "Target" or p_nameplate.type
+  local l_inCombat = tNameplate.inCombat
+  local l_type = tNameplate.targetNP and "Target" or tNameplate.type
 
   for i = 1, #_matrixCategories do
     local l_matrix = _matrix[_matrixCategories[i] .. l_type]
@@ -1061,7 +1061,7 @@ function TwinkiePlates:GetMatrixFlags(p_nameplate)
     end
   end
 
-  if (not p_nameplate.hasHealth) then
+  if (not tNameplate.hasHealth) then
     l_flags = ClearFlag(l_flags, F_HEALTH)
   end
 
@@ -1366,13 +1366,13 @@ function TwinkiePlates:InitConfiguration()
   _configUI:Show(false)
 
   local l_matrix = _configUI:FindChild("MatrixConfiguration")
-  local l_rowHeight = (1 / #_matrixCategories)
+  -- local l_rowHeight = (1 / #_matrixCategories)
 
   -- Matrix layout
   self:DistributeMatrixColumns(l_matrix:FindChild("RowNames"))
   for i, category in _ipairs(_matrixCategories) do
     local containerCategory = l_matrix:FindChild(category)
-    containerCategory:SetAnchorPoints(0, l_rowHeight * (i - 1), 1, l_rowHeight * i)
+    -- containerCategory:SetAnchorPoints(0, l_rowHeight * (i - 1), 1, l_rowHeight * i)
     self:DistributeMatrixColumns(containerCategory, category)
   end
 
@@ -1391,12 +1391,12 @@ function TwinkiePlates:InitConfiguration()
   end
 end
 
-function TwinkiePlates:DistributeMatrixColumns(p_categoryWindow, p_categoryName)
-  local l_columns = (1 / #_matrixFilters)
+function TwinkiePlates:DistributeMatrixColumns(wndElementRow, p_categoryName)
+  -- local l_columns = (1 / #_matrixFilters)
   for i, filter in _ipairs(_matrixFilters) do
-    local l_left = l_columns * (i - 1)
-    local l_right = l_columns * i
-    local l_button = p_categoryWindow:FindChild(filter)
+    -- local l_left = l_columns * (i - 1)
+    -- local l_right = l_columns * i
+    local l_button = wndElementRow:FindChild(filter)
 
     -- l_button:SetAnchorPoints(l_left, 0, l_right, 1)
     -- l_button:SetAnchorOffsets(1, 1, -1, -1)
