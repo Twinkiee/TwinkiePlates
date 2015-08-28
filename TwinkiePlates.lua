@@ -363,12 +363,12 @@ function TwinkiePlates:OnUnitCombatStateChanged(p_unit, p_inCombat)
   end
 end
 
-function TwinkiePlates:OnGroupUpdated(p_unit)
-  if (p_unit == nil) then return end
-  local l_nameplate = self.nameplates[p_unit:GetId()]
-  if (l_nameplate ~= nil) then
-    l_nameplate.inGroup = p_unit:IsInYourGroup()
-    l_nameplate.type = l_nameplate.inGroup and "Group" or _dispStr[l_nameplate.eDisposition]
+function TwinkiePlates:OnGroupUpdated(unitNameplateOwner)
+  if (unitNameplateOwner == nil) then return end
+  local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
+  if (tNameplate ~= nil) then
+    tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
+    tNameplate.type = tNameplate.inGroup and "Group" or _dispStr[tNameplate.eDisposition] .. tNameplate.isPlayer and "Pc" pr "Npc"
   end
 end
 
@@ -391,17 +391,19 @@ end
 
 
 
-function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, p_target)
+function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategoryType, p_target)
   tNameplate = tNameplate or {}
   p_target = p_target or false
 
+  local bIsCharacter = unitNameplateOwner:IsACharacter()
+
   tNameplate.unit = unitNameplateOwner
-  tNameplate.unitClassID = unitNameplateOwner:IsACharacter() and unitNameplateOwner:GetClassId() or unitNameplateOwner:GetRank()
+  tNameplate.unitClassID = bIsCharacter and unitNameplateOwner:GetClassId() or unitNameplateOwner:GetRank()
   tNameplate.bPet = self:IsPet(unitNameplateOwner)
   tNameplate.eDisposition = self:GetDispositionTo(unitNameplateOwner, _player)
-  tNameplate.isPlayer = unitNameplateOwner:IsACharacter()
+  tNameplate.isPlayer = bIsCharacter
 
-  tNameplate.type = p_type
+  tNameplate.type = strCategoryType
   tNameplate.color = "FFFFFFFF"
   tNameplate.targetNP = p_target
   tNameplate.hasHealth = self:HasHealth(unitNameplateOwner)
@@ -787,7 +789,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     local eDispositionToPlayer = self:GetDispositionTo(tNameplate.unit, _player)
     if (tNameplate.eDisposition ~= eDispositionToPlayer) then
       tNameplate.eDisposition = eDispositionToPlayer
-      tNameplate.type = _dispStr[eDispositionToPlayer]
+      tNameplate.type = _dispStr[eDispositionToPlayer] .. tNameplate.isPlayer and "Pc" pr "Npc"
     end
   end
 
@@ -1049,23 +1051,23 @@ function TwinkiePlates:GetDispositionTo(unitSubject, unitObject)
 end
 
 function TwinkiePlates:GetMatrixFlags(tNameplate)
-  local l_flags = 0
-  local l_inCombat = tNameplate.inCombat
-  local l_type = tNameplate.targetNP and "Target" or tNameplate.type
+  local nFlags = 0
+  local bInCombat = tNameplate.inCombat
+  local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.type
 
   for i = 1, #_matrixCategories do
-    local l_matrix = _matrix[_matrixCategories[i] .. l_type]
+    local l_matrix = _matrix[_matrixCategories[i] .. strUnitCategoryType]
     if ((type(l_matrix) ~= "number") or (l_matrix == 3) or
-        (l_matrix + (l_inCombat and 1 or 0) == 2)) then
-      l_flags = SetFlag(l_flags, i - 1)
+        (l_matrix + (bInCombat and 1 or 0) == 2)) then
+      nFlags = SetFlag(nFlags, i - 1)
     end
   end
 
   if (not tNameplate.hasHealth) then
-    l_flags = ClearFlag(l_flags, F_HEALTH)
+    nFlags = ClearFlag(nFlags, F_HEALTH)
   end
 
-  return l_flags
+  return nFlags
 end
 
 function SetFlag(p_flags, p_flag)
@@ -1117,10 +1119,10 @@ function TwinkiePlates:OnTargetUnitChanged(unitTarget)
   -- Print(p_target:GetType())
 
   if (unitTarget ~= nil) then
-    local strUnitType = self:GetUnitType(unitTarget)
+    local strUnitCategoryType = self:GetUnitType(unitTarget)
     if (_targetNP == nil) then
       -- Print(">>> OnTargetUnitChanged; initializing new nameplate")
-      _targetNP = self:InitNameplate(unitTarget, nil, strUnitType, true)
+      _targetNP = self:InitNameplate(unitTarget, nil, strUnitCategoryType, true)
 
       if (_matrix["ConfigLegacyTargeting"]) then
         self:UpdateLegacyTargetPixie()
@@ -1138,7 +1140,7 @@ function TwinkiePlates:OnTargetUnitChanged(unitTarget)
       -- Target Nameplacte is never reset because it's not attached to any specific unit thus is never affected by OnUnitDestroyed event
       _targetNP.bIsVerticalOffsetUpdated = false
 
-      _targetNP = self:InitNameplate(unitTarget, _targetNP, strUnitType, true)
+      _targetNP = self:InitNameplate(unitTarget, _targetNP, strUnitCategoryType, true)
 
       if (_matrix["ConfigLegacyTargeting"]) then
         self:UpdateLegacyTargetPixie()
@@ -1178,9 +1180,9 @@ end
 function TwinkiePlates:OnTextBubble(unitNameplateOwner, p_text)
   if (_player == nil) then return end
 
-  local l_nameplate = self.nameplates[unitNameplateOwner:GetId()]
-  if (l_nameplate ~= nil) then
-    self:ProcessTextBubble(l_nameplate, p_text)
+  local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
+  if (tNameplate ~= nil) then
+    self:ProcessTextBubble(tNameplate, p_text)
   end
 end
 
@@ -1948,16 +1950,19 @@ function TwinkiePlates:GetUnitType(unitNameplateOwner)
     end
   end
 
-  if (unitNameplateOwner:IsACharacter() or self:HasActivationState(unitNameplateOwner)) then
-    return _dispStr[l_disposition]
+  local bIsCharacter = unitNameplateOwner:IsACharacter()
+
+  if (bIsCharacter or self:HasActivationState(unitNameplateOwner)) then
+    return _dispStr[l_disposition] .. bIsCharacter and "Pc" or "Npc"
   end
 
   if (unitNameplateOwner:GetHealth() == nil) then return "Hidden" end
 
   local l_archetype = unitNameplateOwner:GetArchetype()
 
+  -- Returning Friendly/Neutral/Hostile .. Pc/Npc
   if (l_archetype ~= nil) then
-    return _dispStr[l_disposition]
+    return _dispStr[l_disposition] .. bIsCharacter and "Pc" or "Npc"
   end
 
   return "Hidden"
