@@ -42,10 +42,8 @@ While I'm trying to add just as many features as they make sense, TwinkiePlates 
     2. In combat only
     3. Out of combat only
     4. Never
-
 * Hide main bars when full health/shield
 * Aggro lost indicator (unit's name turns cyan when not targeting you)
-* 
 * Harvesting nodes toggle
 * Fade non-targeted units
 * Cleanse indicator (main bars container frame)
