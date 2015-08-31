@@ -26,13 +26,15 @@ local TwinkiePlates = {}
 
 local _ccWhiteList =
 {
-  [Unit.CodeEnumCCState.Stun] = "Stun",
-  [Unit.CodeEnumCCState.Disarm] = "Disarm",
-  [Unit.CodeEnumCCState.Fear] = "Fear",
-  [Unit.CodeEnumCCState.Knockdown] = "knockdown",
   [Unit.CodeEnumCCState.Blind] = "Blind",
-  [Unit.CodeEnumCCState.Tether] = "Tether",
+  [Unit.CodeEnumCCState.Disarm] = "Disarm",
+  [Unit.CodeEnumCCState.Disorient] = "Disorient",
+  [Unit.CodeEnumCCState.Fear] = "Fear",
+  [Unit.CodeEnumCCState.Knockdown] = "Knockdown",
   [Unit.CodeEnumCCState.Subdue] = "Subdue",
+  [Unit.CodeEnumCCState.Stun] = "Stun",
+  [Unit.CodeEnumCCState.Root] = "Root",
+  [Unit.CodeEnumCCState.Tether] = "Tether",
   [Unit.CodeEnumCCState.Vulnerability] = "MoO",
 }
 
@@ -78,9 +80,12 @@ local _dispColor =
 local _typeColor =
 {
   Self = _color("FF7DAF29"),
-  Friendly = _color("FF7DAF29"),
-  Neutral = _color("FFFFBC55"),
-  Hostile = _color("FFFA394C"),
+  FriendlyPc = _color("FF7DAF29"),
+  FriendlyNpc = _color("xkcdKeyLime"),
+  NeutralPc = _color("FFFFBC55"),
+  NeutralNpc = _color("xkcdDandelion"),
+  HostilePc = _color("xkcdLipstickRed"),
+  HostileNpc = _color("FFFA394C"),
   Group = _color("FF7DAF29"), -- FF597CFF
   Harvest = _color("FFFFFFFF"),
   Other = _color("FFFFFFFF"),
@@ -116,11 +121,15 @@ local _matrixFilters =
 {
   "Self",
   "Target",
-  "Friendly",
-  "Neutral",
-  "Hostile",
   "Group",
-  "Other",
+  "FriendlyPc",
+  "FriendlyNpc",
+  "NeutralPc",
+  "NeutralNpc",
+  "HostilePc",
+  "HostileNpc",
+
+  -- "Other",
 }
 
 local _matrixButtonSprites =
@@ -359,12 +368,13 @@ function TwinkiePlates:OnUnitCombatStateChanged(p_unit, p_inCombat)
   end
 end
 
-function TwinkiePlates:OnGroupUpdated(p_unit)
-  if (p_unit == nil) then return end
-  local l_nameplate = self.nameplates[p_unit:GetId()]
-  if (l_nameplate ~= nil) then
-    l_nameplate.inGroup = p_unit:IsInYourGroup()
-    l_nameplate.type = l_nameplate.inGroup and "Group" or _dispStr[l_nameplate.eDisposition]
+function TwinkiePlates:OnGroupUpdated(unitNameplateOwner)
+  if (unitNameplateOwner == nil) then return end
+  local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
+  if (tNameplate ~= nil) then
+    local strPcOrNpc = tNameplate.isPlayer and "Pc" or "Npc"
+    tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
+    tNameplate.type = tNameplate.inGroup and "Group" or _dispStr[tNameplate.eDisposition] .. strPcOrNpc
   end
 end
 
@@ -387,31 +397,35 @@ end
 
 
 
-function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTargetNameplate)
+function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategoryType, tTargetNameplate)
   tNameplate = tNameplate or {}
   tTargetNameplate = tTargetNameplate or false
 
+  local bIsCharacter = unitNameplateOwner:IsACharacter()
+
   tNameplate.unit = unitNameplateOwner
-  tNameplate.unitClassID = unitNameplateOwner:IsACharacter() and unitNameplateOwner:GetClassId() or unitNameplateOwner:GetRank()
+  tNameplate.unitClassID = bIsCharacter and unitNameplateOwner:GetClassId() or unitNameplateOwner:GetRank()
   tNameplate.bPet = self:IsPet(unitNameplateOwner)
   tNameplate.eDisposition = self:GetDispositionTo(unitNameplateOwner, _player)
-  tNameplate.isPlayer = unitNameplateOwner:IsACharacter()
+  tNameplate.isPlayer = bIsCharacter
 
-  tNameplate.type = p_type
+  tNameplate.type = strCategoryType
   tNameplate.color = "FFFFFFFF"
   tNameplate.targetNP = tTargetNameplate
   tNameplate.hasHealth = self:HasHealth(unitNameplateOwner)
 
   if (tTargetNameplate) then
     local l_source = self.nameplates[unitNameplateOwner:GetId()]
-    tNameplate.ccActiveID = l_source and l_source.ccActiveID or -1
-    tNameplate.ccDuration = l_source and l_source.ccDuration or 0
-    tNameplate.ccDurationMax = l_source and l_source.ccDurationMax or 0
+    tNameplate.nCcActiveId = l_source and l_source.nCcActiveId or -1
+    tNameplate.nCcNewId = l_source and l_source.nCcNewId or -1
+    tNameplate.nCcDuration = l_source and l_source.nCcDuration or 0
+    tNameplate.nCcDurationMax = l_source and l_source.nCcDurationMax or 0
 
   else
-    tNameplate.ccActiveID = -1
-    tNameplate.ccDuration = 0
-    tNameplate.ccDurationMax = 0
+    tNameplate.nCcActiveId = -1
+    tNameplate.nCcNewId = -1
+    tNameplate.nCcDuration = 0
+    tNameplate.nCcDurationMax = 0
   end
 
   tNameplate.lowHealth = false
@@ -444,7 +458,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTa
   local l_font = _matrix["ConfigAlternativeFont"] and _fontSecondary or _fontPrimary
 
   if (tNameplate.form == nil) then
-    Print("TwinkiePlates: InitNameplate; New form!")
+    -- Print("TwinkiePlates: InitNameplate; New form!")
 
     tNameplate.form = Apollo.LoadForm(self.xmlDoc, "Nameplate", "InWorldHudStratum", self)
 
@@ -456,7 +470,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTa
     tNameplate.textUnitGuild = tNameplate.form:FindChild("TextUnitGuild")
     tNameplate.textUnitLevel = tNameplate.form:FindChild("TextUnitLevel")
 
-    tNameplate.containerCC = tNameplate.form:FindChild("ContainerCC")
+    tNameplate.wndContainerCc = tNameplate.form:FindChild("ContainerCC")
     tNameplate.containerCastBar = tNameplate.form:FindChild("ContainerCastBar")
 
     tNameplate.iconUnit = tNameplate.form:FindChild("IconUnit")
@@ -497,9 +511,9 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTa
     -- tNameplate.textUnitGuild:SetAnchorOffsets(0, 0, 0, l_font[l_fontGuild].height * 0.9)
 
     tNameplate.containerCastBar:SetFont(l_font[l_fontSize].font)
-    tNameplate.containerCC:SetFont(l_font[l_fontSize].font)
+    tNameplate.wndContainerCc:SetFont(l_font[l_fontSize].font)
     tNameplate.containerCastBar:SetAnchorOffsets(0, 0, 0, (l_font[l_fontSize].height * 0.75) + l_zoomSliderH)
-    tNameplate.containerCC:SetAnchorOffsets(0, 0, 0, (l_font[l_fontSize].height * 0.75) + l_zoomSliderH)
+    tNameplate.wndContainerCc:SetAnchorOffsets(0, 0, 0, (l_font[l_fontSize].height * 0.75) + l_zoomSliderH)
 
     tNameplate.containerMain:SetFont(l_font[l_fontSize].font)
 
@@ -514,7 +528,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTa
 
   self:UpdateAnchoring(tNameplate)
 
-  Print("tNameplate.bIsVerticalOffsetUpdated: " .. tostring(tNameplate.bIsVerticalOffsetUpdated))
+  -- Print("tNameplate.bIsVerticalOffsetUpdated: " .. tostring(tNameplate.bIsVerticalOffsetUpdated))
 
   if (not tNameplate.bIsVerticalOffsetUpdated) then
     self:InitNameplateVerticalOffset(tNameplate)
@@ -525,7 +539,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, p_type, tTa
   tNameplate.onScreen = tNameplate.form:IsOnScreen()
 
   self:UpdateOpacity(tNameplate)
-  tNameplate.containerCC:Show(false)
+  tNameplate.wndContainerCc:Show(false)
   tNameplate.containerMain:Show(false)
   tNameplate.containerCastBar:Show(false)
   tNameplate.textUnitGuild:Show(false)
@@ -655,11 +669,11 @@ function TwinkiePlates:InitNameplateVerticalOffset(tNameplate, nInputNameplacerV
   local nVerticalOffset = _matrix["SliderVerticalOffset"]
   local nNameplacerVerticalOffset = nInputNameplacerVerticalOffset
 
-  Print("TwinkiePlates:InitNameplateVerticalOffset(tNameplate); " .. tostring(nInputNameplacerVerticalOffset))
+  -- Print("TwinkiePlates:InitNameplateVerticalOffset(tNameplate); " .. tostring(nInputNameplacerVerticalOffset))
 
   if (self.nameplacer or nNameplacerVerticalOffset) then
 
-    Print("TwinkiePlates:InitNameplateVerticalOffset(tNameplate); tNameplate.unit:GetName(): " .. tostring(tNameplate.unit:GetName()) .. "; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
+    -- Print("TwinkiePlates:InitNameplateVerticalOffset(tNameplate); tNameplate.unit:GetName(): " .. tostring(tNameplate.unit:GetName()) .. "; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
 
     if (not nNameplacerVerticalOffset) then
       local tNameplatePositionSetting = self.nameplacer:GetUnitNameplatePositionSetting(tNameplate.unit:GetName())
@@ -782,8 +796,9 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if (tNameplate.onScreen) then
     local eDispositionToPlayer = self:GetDispositionTo(tNameplate.unit, _player)
     if (tNameplate.eDisposition ~= eDispositionToPlayer) then
+      local strPcOrNpc = tNameplate.isPlayer and "Pc" or "Npc"
       tNameplate.eDisposition = eDispositionToPlayer
-      tNameplate.type = _dispStr[eDispositionToPlayer]
+      tNameplate.type = _dispStr[eDispositionToPlayer] .. strPcOrNpc
     end
   end
 
@@ -792,8 +807,8 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     tNameplate.form:Show(bIsNameplateVisible, true)
   end
 
-  if (bShowCcBar and tNameplate.ccActiveID ~= -1) then
-    self:UpdateCC(tNameplate)
+  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1) ) then
+    self:UpdateCc(tNameplate)
   end
 
   if (_flags.opacity == 2) then
@@ -841,39 +856,6 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   end
 end
 
---[[
-function TwinkiePlates:UpdateAnchoring(tNameplate, nCodeEnumFloaterLocation)
-  local tAnchorUnit = tNameplate.unit:IsMounted() and tNameplate.unit:GetUnitMount() or tNameplate.unit
-  local bReposition = false
-
-  if (_matrix["ConfigDynamicVPos"] and not tNameplate.isPlayer) then
-
-    if (self.nameplacer) then
-      local tNameplatePositionSetting = self.nameplacer:GetUnitNameplatePositionSetting(tNameplate.unit:GetName())
-      local nCodeEnumFloaterLocation
-      if (tNameplatePositionSetting and tNameplatePositionSetting["nAnchorId"]) then
-        nCodeEnumFloaterLocation = tNameplatePositionSetting["nAnchorId"]
-        tNameplate.form:SetUnit(tAnchorUnit, nCodeEnumFloaterLocation)
-        return
-      end
-    end
-
-    local nOverhead = tNameplate.unit:GetOverheadAnchor()
-    if (nOverhead ~= nil) then
-      bReposition = not tNameplate.occluded and nOverhead.y < 25
-    end
-  end
-
-  -- Print ("//////////////// nCodeEnumFloaterLocation: " .. tostring(nCodeEnumFloaterLocation))
-  if (nCodeEnumFloaterLocation) then
-
-    Print("\\\\\\\\\\\\\\\\\ nCodeEnumFloaterLocation: " .. tostring(nCodeEnumFloaterLocation))
-    tNameplate.form:SetUnit(tAnchorUnit, nCodeEnumFloaterLocation)
-  else
-    tNameplate.form:SetUnit(tAnchorUnit, bReposition and 0 or 1)
-  end
-end
-]]
 
 function TwinkiePlates:UpdateMainContainer(tNameplate)
   local l_health = tNameplate.unit:GetHealth();
@@ -1078,24 +1060,24 @@ function TwinkiePlates:GetDispositionTo(unitSubject, unitObject)
   return unitSubject:GetDispositionTo(unitObject)
 end
 
-function TwinkiePlates:GetMatrixFlags(p_nameplate)
-  local l_flags = 0
-  local l_inCombat = p_nameplate.inCombat
-  local l_type = p_nameplate.targetNP and "Target" or p_nameplate.type
+function TwinkiePlates:GetMatrixFlags(tNameplate)
+  local nFlags = 0
+  local bInCombat = tNameplate.inCombat
+  local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.type
 
   for i = 1, #_matrixCategories do
-    local l_matrix = _matrix[_matrixCategories[i] .. l_type]
+    local l_matrix = _matrix[_matrixCategories[i] .. strUnitCategoryType]
     if ((type(l_matrix) ~= "number") or (l_matrix == 3) or
-        (l_matrix + (l_inCombat and 1 or 0) == 2)) then
-      l_flags = SetFlag(l_flags, i - 1)
+        (l_matrix + (bInCombat and 1 or 0) == 2)) then
+      nFlags = SetFlag(nFlags, i - 1)
     end
   end
 
-  if (not p_nameplate.hasHealth) then
-    l_flags = ClearFlag(l_flags, F_HEALTH)
+  if (not tNameplate.hasHealth) then
+    nFlags = ClearFlag(nFlags, F_HEALTH)
   end
 
-  return l_flags
+  return nFlags
 end
 
 function SetFlag(p_flags, p_flag)
@@ -1147,10 +1129,10 @@ function TwinkiePlates:OnTargetUnitChanged(unitTarget)
   -- Print(unitTarget:GetType())
 
   if (unitTarget ~= nil) then
-    local strUnitType = self:GetUnitType(unitTarget)
+    local strUnitCategoryType = self:GetUnitType(unitTarget)
     if (_targetNP == nil) then
       -- Print(">>> OnTargetUnitChanged; initializing new nameplate")
-      _targetNP = self:InitNameplate(unitTarget, nil, strUnitType, true)
+      _targetNP = self:InitNameplate(unitTarget, nil, strUnitCategoryType, true)
 
       if (_matrix["ConfigLegacyTargeting"]) then
         self:UpdateLegacyTargetPixie()
@@ -1163,12 +1145,12 @@ function TwinkiePlates:OnTargetUnitChanged(unitTarget)
       end
     else
 
-      Print("Updating _targetNP")
+      -- Print("Updating _targetNP")
 
       -- Target Nameplacte is never reset because it's not attached to any specific unit thus is never affected by OnUnitDestroyed event
       _targetNP.bIsVerticalOffsetUpdated = false
 
-      _targetNP = self:InitNameplate(unitTarget, _targetNP, strUnitType, true)
+      _targetNP = self:InitNameplate(unitTarget, _targetNP, strUnitCategoryType, true)
 
       if (_matrix["ConfigLegacyTargeting"]) then
         self:UpdateLegacyTargetPixie()
@@ -1207,9 +1189,9 @@ end
 function TwinkiePlates:OnTextBubble(unitNameplateOwner, p_text)
   if (_player == nil) then return end
 
-  local l_nameplate = self.nameplates[unitNameplateOwner:GetId()]
-  if (l_nameplate ~= nil) then
-    self:ProcessTextBubble(l_nameplate, p_text)
+  local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
+  if (tNameplate ~= nil) then
+    self:ProcessTextBubble(tNameplate, p_text)
   end
 end
 
@@ -1352,7 +1334,7 @@ function TwinkiePlates:OnMatrixClick(p_wndHandler, wndCtrl, nClick)
 end
 
 function TwinkiePlates:OnInterfaceMenuListHasLoaded()
-  Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "TwinkiePlates", {"ShowTwinkiePlatesConfigurationWnd", "", ""})
+  Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "TwinkiePlates", { "ShowTwinkiePlatesConfigurationWnd", "", "" })
 end
 
 function TwinkiePlates:CheckMatrixIntegrity()
@@ -1395,13 +1377,13 @@ function TwinkiePlates:InitConfiguration()
   _configUI:Show(false)
 
   local l_matrix = _configUI:FindChild("MatrixConfiguration")
-  local l_rowHeight = (1 / #_matrixCategories)
+  -- local l_rowHeight = (1 / #_matrixCategories)
 
   -- Matrix layout
   self:DistributeMatrixColumns(l_matrix:FindChild("RowNames"))
   for i, category in _ipairs(_matrixCategories) do
     local containerCategory = l_matrix:FindChild(category)
-    containerCategory:SetAnchorPoints(0, l_rowHeight * (i - 1), 1, l_rowHeight * i)
+    -- containerCategory:SetAnchorPoints(0, l_rowHeight * (i - 1), 1, l_rowHeight * i)
     self:DistributeMatrixColumns(containerCategory, category)
   end
 
@@ -1420,15 +1402,15 @@ function TwinkiePlates:InitConfiguration()
   end
 end
 
-function TwinkiePlates:DistributeMatrixColumns(p_categoryWindow, p_categoryName)
-  local l_columns = (1 / #_matrixFilters)
+function TwinkiePlates:DistributeMatrixColumns(wndElementRow, p_categoryName)
+  -- local l_columns = (1 / #_matrixFilters)
   for i, filter in _ipairs(_matrixFilters) do
-    local l_left = l_columns * (i - 1)
-    local l_right = l_columns * i
-    local l_button = p_categoryWindow:FindChild(filter)
+    -- local l_left = l_columns * (i - 1)
+    -- local l_right = l_columns * i
+    local l_button = wndElementRow:FindChild(filter)
 
-    l_button:SetAnchorPoints(l_left, 0, l_right, 1)
-    l_button:SetAnchorOffsets(1, 1, -1, -1)
+    -- l_button:SetAnchorPoints(l_left, 0, l_right, 1)
+    -- l_button:SetAnchorOffsets(1, 1, -1, -1)
 
     if (p_categoryName ~= nil) then
       local l_value = _matrix[p_categoryName .. filter] or 0
@@ -1523,56 +1505,127 @@ function TwinkiePlates:InitClassIcon(p_nameplate)
   p_nameplate.iconUnit:SetSprite(l_icon ~= nil and l_icon or "")
 end
 
-function TwinkiePlates:OnCCStateApplied(p_ccID, unitNameplateOwner)
+function TwinkiePlates:OnCCStateApplied(nCcId, unitNameplateOwner)
 
-  Print("asdasd" .. tostring(p_ccID))
+  -- Print("Applied CC ID: " .. tostring(nCcId))
 
-  if (_ccWhiteList[p_ccID] == nil) then
+  if (_ccWhiteList[nCcId] == nil) then
     return
   end
 
   local l_nameplate = self.nameplates[unitNameplateOwner:GetId()]
 
+
   if (l_nameplate ~= nil) then
     if (GetFlag(l_nameplate.matrixFlags, F_CC_BAR)) then
-      self:RegisterCC(l_nameplate, p_ccID)
+      self:RegisterCc(l_nameplate, nCcId)
     end
   end
+
+  -- Print("l_nameplate ~= _targetNP: " .. tostring(l_nameplate ~= _targetNP))
 
   if (_targetNP ~= nil and _targetNP.unit == unitNameplateOwner) then
     if (GetFlag(_targetNP.matrixFlags, F_CC_BAR)) then
-      self:RegisterCC(_targetNP, p_ccID)
+      self:RegisterCc(_targetNP, nCcId)
     end
   end
 end
 
-function TwinkiePlates:RegisterCC(p_nameplate, p_ccID)
-  local l_duration = p_nameplate.unit:GetCCStateTimeRemaining(p_ccID)
-  -- if (p_ccID == 9 or l_duration > p_nameplate.ccDuration) then
-  p_nameplate.ccDurationMax = _max(l_duration, 0.1)
-  p_nameplate.ccActiveID = p_ccID
-  p_nameplate.containerCC:SetText(_ccWhiteList[p_ccID])
-  p_nameplate.containerCC:Show(true)
-  p_nameplate.rearrange = true
-  -- end
+function TwinkiePlates:RegisterCc(tNameplate, nCcId)
+  -- GetCCStateTimeRemaining(nCcId) doesn't return any duration as soon as the CC is applied
+  --local l_duration = tNameplate.unit:GetCCStateTimeRemaining(nCcId)
+
+  -- Print("nCcId: " .. nCcId .. "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId .. "; tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId)
+
+  local strCcNewName = _ccWhiteList[nCcId]
+  -- if (nCcId == 9 or l_duration > tNameplate.nCcDuration) then
+  if (strCcNewName) then
+    -- tNameplate.nCcDurationMax = _max(l_duration, 0.1)
+
+    -- Register the new CC only if there no MoO already ongoning. The CC duration check is performed in the UpdateCc method
+    if (tNameplate.nCcNewId == -1 or (tNameplate.nCcNewId ~= -1 and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability and tNameplate.nCcNewId ~= Unit.CodeEnumCCState.Vulnerability)) then
+      tNameplate.nCcNewId = nCcId
+
+      -- Print("Registered CC: " .. tNameplate.nCcNewId)
+    end
+
+    --[[
+    if (tNameplate.nCcActiveId == -1) then
+      tNameplate.nCcActiveId = nCcId
+    end
+    ]]
+
+    -- tNameplate.wndContainerCc:SetText(_ccWhiteList[nCcId])
+    -- tNameplate.wndContainerCc:Show(true)
+    -- tNameplate.rearrange = true
+  end
 end
 
-function TwinkiePlates:UpdateCC(p_nameplate)
-  p_nameplate.ccDuration = p_nameplate.unit:GetCCStateTimeRemaining(p_nameplate.ccActiveID) or 0
-  local l_show = p_nameplate.ccActiveID ~= -1
-  if (p_nameplate.containerCC:IsVisible() ~= l_show) then
-    p_nameplate.containerCC:Show(l_show)
-    p_nameplate.rearrange = true
+function TwinkiePlates:UpdateCc(tNameplate)
+
+  -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId ..  "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId )
+  -- tNameplate.nCcDuration = tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
+
+
+  local nCcNewDuration = tNameplate.nCcNewId >= 0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcNewId) or 0
+  tNameplate.nCcDuration = tNameplate.nCcActiveId >=0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
+
+  -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId .. "; nCcNewDuration: " .. nCcNewDuration)
+
+  if (nCcNewDuration <= 0 and tNameplate.nCcNewId ~= -1) then
+    tNameplate.nCcNewId = -1
   end
-  if (p_nameplate.ccDuration <= 0) then
-    p_nameplate.ccActiveID = -1
-    p_nameplate.containerCC:Show(false)
-    p_nameplate.rearrange = true
-  elseif (p_nameplate.form:IsVisible()) then
-    if (p_nameplate.ccDuration > p_nameplate.ccDurationMax) then
-      p_nameplate.ccDurationMax = p_nameplate.ccDuration
+
+  if (tNameplate.nCcDuration <= 0 and tNameplate.nCcActiveId ~= -1) then
+    tNameplate.nCcActiveId = -1
+  end
+
+  local strCcActiveName = _ccWhiteList[tNameplate.nCcActiveId]
+  local strCcNewName = _ccWhiteList[tNameplate.nCcNewId]
+
+  -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId .. "; nCcNewDuration: " .. nCcNewDuration)
+
+  local bShowCcBar = (strCcActiveName and tNameplate.nCcDuration > 0) or (strCcNewName and nCcNewDuration > 0)
+
+  -- Print("bShowCcBar: " .. tostring(bShowCcBar))
+
+  if (tNameplate.wndContainerCc:IsVisible() ~= bShowCcBar) then
+
+    tNameplate.wndContainerCc:Show(bShowCcBar)
+    tNameplate.rearrange = true
+  end
+
+  -- Print("tNameplate.nCcDurationMax: " .. tNameplate.nCcDurationMax .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration)
+
+  if (bShowCcBar) then
+
+    local bUpdateCc = not tNameplate.nCcDurationMax
+                      or tNameplate.nCcActiveId == -1
+                      or (tNameplate.nCcNewId == Unit.CodeEnumCCState.Vulnerability)
+                      or ((nCcNewDuration and nCcNewDuration > tNameplate.nCcDuration)
+                          and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability)
+
+    -- Print("bUpdateCc: " .. tostring(bUpdateCc))
+
+    -- New CC has a longer duration than the previous one (if any) and the current CC state is not a MoO
+    if (bUpdateCc) then
+    -- if (false) then
+
+      -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; strCcNewName: " .. strCcNewName .. "; nCcNewDuration: " .. nCcNewDuration)
+      -- Print("tNameplate.nCcDurationMax: " .. tNameplate.nCcDurationMax .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration)
+
+      tNameplate.nCcDurationMax = nCcNewDuration
+      tNameplate.nCcDuration = nCcNewDuration
+      tNameplate.nCcActiveId = tNameplate.nCcNewId
+      tNameplate.nCcNewId = -1
+
+      tNameplate.wndContainerCc:SetText(strCcNewName)
+      tNameplate.cc:SetMax(nCcNewDuration)
     end
-    self:SetProgressBar(p_nameplate.cc, p_nameplate.ccDuration, p_nameplate.ccDurationMax)
+
+    -- Update the CC progress bar
+    tNameplate.cc:SetProgress(tNameplate.nCcDuration)
+    -- self:SetProgressBar(tNameplate.cc, tNameplate.nCcDuration, tNameplate.nCcDurationMax)
   end
 end
 
@@ -1958,32 +2011,35 @@ function TwinkiePlates:GetUnitType(unitNameplateOwner)
     return "Hidden"
   end
 
-  local l_disposition = unitNameplateOwner:GetDispositionTo(_player)
+  local eDisposition = unitNameplateOwner:GetDispositionTo(_player)
+  local bIsCharacter = unitNameplateOwner:IsACharacter()
+  local strPcOrNpc = (bIsCharacter) and "Pc" or "Npc"
 
   if (_exceptions[unitNameplateOwner:GetName()] ~= nil) then
-    return _exceptions[unitNameplateOwner:GetName()] and _dispStr[l_disposition] or "Hidden"
+    return _exceptions[unitNameplateOwner:GetName()] and _dispStr[eDisposition] .. strPcOrNpc or "Hidden"
   end
 
-  local l_rewardInfo = unitNameplateOwner:GetRewardInfo()
+  local tRewardInfo = unitNameplateOwner:GetRewardInfo()
 
-  if (l_rewardInfo ~= nil and _next(l_rewardInfo) ~= nil) then
-    for i = 1, #l_rewardInfo do
-      if (l_rewardInfo[i].strType ~= "Challenge") then
-        return _dispStr[l_disposition]
+  if (tRewardInfo ~= nil and _next(tRewardInfo) ~= nil) then
+    for i = 1, #tRewardInfo do
+      if (tRewardInfo[i].strType ~= "Challenge") then
+        return _dispStr[eDisposition] .. strPcOrNpc
       end
     end
   end
 
-  if (unitNameplateOwner:IsACharacter() or self:HasActivationState(unitNameplateOwner)) then
-    return _dispStr[l_disposition]
+  if (bIsCharacter or self:HasActivationState(unitNameplateOwner)) then
+    return _dispStr[eDisposition] .. strPcOrNpc
   end
 
   if (unitNameplateOwner:GetHealth() == nil) then return "Hidden" end
 
   local l_archetype = unitNameplateOwner:GetArchetype()
 
+  -- Returning Friendly/Neutral/Hostile .. Pc/Npc
   if (l_archetype ~= nil) then
-    return _dispStr[l_disposition]
+    return _dispStr[eDisposition] .. strPcOrNpc
   end
 
   return "Hidden"
@@ -2023,7 +2079,7 @@ end
 
 function TwinkiePlates:SetNameplateVerticalOffset(tNameplate, nVerticalOffset, nNameplacerVerticalOffset)
 
-  Print("SetNameplateVerticalOffset; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
+  -- Print("SetNameplateVerticalOffset; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
   tNameplate.form:SetAnchorOffsets(-200, -75 - nVerticalOffset - nNameplacerVerticalOffset, 200, 75 - nVerticalOffset - nNameplacerVerticalOffset)
 end
 
@@ -2081,8 +2137,7 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Configuration Functions
 ---------------------------------------------------------------------------------------------------
-
-function TwinkiePlates:OnButtonSignalShowInfoPanel( wndHandler, wndControl, eMouseButton )
+function TwinkiePlates:OnButtonSignalShowInfoPanel(wndHandler, wndControl, eMouseButton)
 end
 
 local TwinkiePlatesInst = TwinkiePlates:new()
