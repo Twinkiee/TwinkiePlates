@@ -57,3 +57,9 @@ While I'm trying to add just as many features as they make sense, TwinkiePlates 
   - Health/shield text as flat amount or percentage
   - Font selection (CRB_Header or CRB_Interface)
   - Target indicator selection (overhead arrow or surrounding reticle)
+
+## PLANNED FEATURES
+
+* Profiles handling
+* Build/Vince Builds integration/support
+* Different aggro-lost visualization
