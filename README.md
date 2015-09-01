@@ -75,15 +75,19 @@ Type /tp or simply open the in-game Interface Menu (bottom-left corner button) a
 ## F.A.Q.
 
 1. _Does nPrimeNameplates's license allow you to fork/continue the original project? Is this a legitimate project?_
+
 No. Technically I'm not entitled to develope this project using, even partially, Nyan Prime's work. In fact I tried to get in touch with Nyan Prime asking for a permission to keep on working on his project; unfortunately I didn't receive any reply. I'm giving him all the credits for his precious work and whenever he would came back claiming any rights I'd simply acknowledge that. In the long terms it's even possible that, eventually, TwinkiePlates will completely diverge from nPrimeNameplates code/UI thus not breaking any copyrights anymore. 
-For those who care my code is freely available here (GNU GPL2): https://github.com/Twinkiee/TwinkiePlates
+For those who care, my code is freely available here (GNU GPL2): https://github.com/Twinkiee/TwinkiePlates
 
 2. _nPrimeNameplates had more visual configurations. Why did you remove those?_
+
 While the aspects of the nameplates and the configuration panel didn't change (that much), they've been through a significant overahaul that made most of the "legacy" visual configurations broken/obsolete. I'm not entirely against these kind of options but, at the moment, since I still have plan to add/change some UI elements they may simply become obsolete once again and not really worth the time investment.
 
 3. _nPrimeNameplates was handling/displaying that thing in a different way. Can you revert it back?_
+
 Well, no. At least not simply because "nPrimeNameplates was like that". TwinkiePlates is a different project.
 
 4. _Do you accept suggestions/requests?_
+
 Yes, they must comply to the each and every one of the 5 aforementioned goals and, in the end of the day, they need to make sense. No promises about when I'll be able to do that either.
 You may want to open an issue here: https://github.com/Twinkiee/TwinkiePlates/issues
