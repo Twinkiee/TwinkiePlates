@@ -214,6 +214,9 @@ local _blinded = nil
 
 local _targetNP = nil
 
+local Overlay
+local tMarkers = {}
+
 local _floor = math.floor
 local _min = math.min
 local _max = math.max
@@ -279,10 +282,10 @@ function TwinkiePlates:OnLoad()
   self.buffer = {}
   self.challenges = ChallengesLib.GetActiveChallengeList()
 
-  Apollo.RegisterSlashCommand("npnpdebug", "OnNPrimeNameplatesCommandDebug", self)
+  -- Apollo.RegisterSlashCommand("tpdebug", "OnNPrimeNameplatesCommandDebug", self)
   Apollo.RegisterEventHandler("VarChange_FrameCount", "OnDebuggerUnit", self)
 
-  Apollo.RegisterSlashCommand("npnp", "OnConfigure", self)
+  Apollo.RegisterSlashCommand("tp", "OnConfigure", self)
   Apollo.RegisterEventHandler("ShowTwinkiePlatesConfigurationWnd", "OnConfigure", self)
 
   Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
@@ -322,6 +325,9 @@ function TwinkiePlates:OnLoad()
 
   self.xmlDoc = XmlDoc.CreateFromFile("TwinkiePlates.xml")
   Apollo.LoadSprites("TwinkiePlates_Sprites.xml")
+
+  Overlay = Apollo.LoadForm(self.xmlDoc, "Overlay", "InWorldHudStratum", self)
+  Overlay:Show(true, true)
 end
 
 function TwinkiePlates:OnSave(p_type)
@@ -753,6 +759,7 @@ function TwinkiePlates:OnFrame()
   end
 
   -- if (true) then return end
+  Overlay:DestroyAllPixies()
 
   local l_c = 0
   for id, nameplate in _pairs(self.nameplates) do
@@ -807,7 +814,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     tNameplate.form:Show(bIsNameplateVisible, true)
   end
 
-  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1) ) then
+  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1)) then
     self:UpdateCc(tNameplate)
   end
 
@@ -826,7 +833,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   self:UpdateAnchoring(tNameplate)
 
   -- if (bShowCastingBar) then
-    self:UpdateCasting(tNameplate)
+  self:UpdateCasting(tNameplate)
   -- end
 
   self:UpdateArmor(tNameplate)
@@ -858,27 +865,27 @@ end
 
 
 function TwinkiePlates:UpdateMainContainer(tNameplate)
-  local l_health = tNameplate.unit:GetHealth();
-  local l_healthMax = tNameplate.unit:GetMaxHealth();
-  local l_shield = tNameplate.unit:GetShieldCapacity();
-  local l_shieldMax = tNameplate.unit:GetShieldCapacityMax();
-  local l_absorb = tNameplate.unit:GetAbsorptionValue();
-  local l_fullHealth = l_health == l_healthMax;
-  local l_shieldFull = false;
-  local l_hiddenBecauseFull = false;
-  local l_isFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
+  local nHealth = tNameplate.unit:GetHealth();
+  local nHealthMax = tNameplate.unit:GetMaxHealth();
+  local nShield = tNameplate.unit:GetShieldCapacity();
+  local nShieldMax = tNameplate.unit:GetShieldCapacityMax();
+  local nAbsorb = tNameplate.unit:GetAbsorptionValue();
+  local bIsFullHealth = nHealth == nHealthMax;
+  local bIsFullShield = false;
+  local bHiddenBecauseFull = false;
+  local bIsFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
 
   if (tNameplate.hasShield) then
-    l_shieldFull = l_shield == l_shieldMax;
+    bIsFullShield = nShield == nShieldMax;
   end
 
   if (not tNameplate.targetNP) then
-    l_hiddenBecauseFull = (_matrix["ConfigSimpleWhenHealthy"] and l_fullHealth) or
-        (_matrix["ConfigSimpleWhenFullShield"] and l_shieldFull);
+    bHiddenBecauseFull = (_matrix["ConfigSimpleWhenHealthy"] and bIsFullHealth) or
+        (_matrix["ConfigSimpleWhenFullShield"] and bIsFullShield);
   end
 
   local l_matrixEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH)
-  local l_visible = l_matrixEnabled and not l_hiddenBecauseFull
+  local l_visible = l_matrixEnabled and not bHiddenBecauseFull
 
   if (tNameplate.containerMain:IsVisible() ~= l_visible) then
     tNameplate.containerMain:Show(l_visible)
@@ -886,30 +893,34 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
   end
 
   if (l_visible) then
-    if (l_health ~= tNameplate.prevHealth) then
-      local l_temp = l_isFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
+
+    -- HP
+    if (nHealth ~= tNameplate.prevHealth) then
+      local l_temp = bIsFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
       if (_matrix[l_temp] ~= 0) then
         local l_cutoff = (_matrix[l_temp] / 100)
-        local l_healthPct = l_health / l_healthMax
+        local l_healthPct = nHealth / nHealthMax
         tNameplate.lowHealth = l_healthPct <= l_cutoff
       end
-      self:SetProgressBar(tNameplate.health, l_health, l_healthMax)
+      self:SetProgressBar(tNameplate.health, nHealth, nHealthMax)
     end
 
-    if (l_absorb > 0) then
+    -- Absorb
+    if (nAbsorb > 0) then
       if (not tNameplate.absorb:IsVisible()) then
         tNameplate.absorb:Show(true)
       end
 
-      if (l_absorb ~= tNameplate.prevAbsorb) then
-        self:SetProgressBar(tNameplate.absorb, l_absorb, l_healthMax)
+      if (nAbsorb ~= tNameplate.prevAbsorb) then
+        self:SetProgressBar(tNameplate.absorb, nAbsorb, nHealthMax)
       end
     else
       tNameplate.absorb:Show(false)
     end
 
-    if (tNameplate.hasShield and l_shield ~= tNameplate.prevShield) then
-      self:SetProgressBar(tNameplate.shield, l_shield, l_shieldMax)
+    -- Shield
+    if (tNameplate.hasShield and nShield ~= tNameplate.prevShield) then
+      self:SetProgressBar(tNameplate.shield, nShield, nShieldMax)
     end
 
     local l_healthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT)
@@ -920,19 +931,19 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
       --if (_matrix["ConfigHealthText"] and not tNameplate.inCombat) then
       -- if (_matrix["ConfigHealthText"]) then
       local l_shieldText = ""
-      local l_healthText = self:GetNumber(l_health, l_healthMax)
+      local l_healthText = self:GetNumber(nHealth, nHealthMax)
 
-      if (tNameplate.hasShield and l_shield ~= 0) then
-        l_shieldText = " (" .. self:GetNumber(l_shield, l_shieldMax) .. ")"
+      if (tNameplate.hasShield and nShield ~= 0) then
+        l_shieldText = " (" .. self:GetNumber(nShield, nShieldMax) .. ")"
       end
 
       tNameplate.wndHealthText:SetText(l_healthText .. l_shieldText)
     end
   end
 
-  tNameplate.prevHealth = l_health
-  tNameplate.prevShield = l_shield
-  tNameplate.prevAbsorb = l_absorb
+  tNameplate.prevHealth = nHealth
+  tNameplate.prevShield = nShield
+  tNameplate.prevAbsorb = nAbsorb
 end
 
 function TwinkiePlates:UpdateTopContainer(p_nameplate)
@@ -1568,7 +1579,7 @@ function TwinkiePlates:UpdateCc(tNameplate)
 
 
   local nCcNewDuration = tNameplate.nCcNewId >= 0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcNewId) or 0
-  tNameplate.nCcDuration = tNameplate.nCcActiveId >=0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
+  tNameplate.nCcDuration = tNameplate.nCcActiveId >= 0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
 
   -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId .. "; nCcNewDuration: " .. nCcNewDuration)
 
@@ -1600,16 +1611,16 @@ function TwinkiePlates:UpdateCc(tNameplate)
   if (bShowCcBar) then
 
     local bUpdateCc = not tNameplate.nCcDurationMax
-                      or tNameplate.nCcActiveId == -1
-                      or (tNameplate.nCcNewId == Unit.CodeEnumCCState.Vulnerability)
-                      or ((nCcNewDuration and nCcNewDuration > tNameplate.nCcDuration)
-                          and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability)
+        or tNameplate.nCcActiveId == -1
+        or (tNameplate.nCcNewId == Unit.CodeEnumCCState.Vulnerability)
+        or ((nCcNewDuration and nCcNewDuration > tNameplate.nCcDuration)
+        and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability)
 
     -- Print("bUpdateCc: " .. tostring(bUpdateCc))
 
     -- New CC has a longer duration than the previous one (if any) and the current CC state is not a MoO
     if (bUpdateCc) then
-    -- if (false) then
+      -- if (false) then
 
       -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; strCcNewName: " .. strCcNewName .. "; nCcNewDuration: " .. nCcNewDuration)
       -- Print("tNameplate.nCcDurationMax: " .. tNameplate.nCcDurationMax .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration)
@@ -1635,14 +1646,30 @@ function TwinkiePlates:UpdateCasting(tNameplate)
 
     tNameplate.containerCastBar:Show(bShowCastBar)
 
+    --[[
+    if (not bShowCastBar) then
+      Print(tMarkers[tNameplate.unit:GetId()].outline)
+
+      Overlay:DestroyPixie(tMarkers[tNameplate.unit:GetId()].outline)
+
+      --- Line
+      Overlay:DestroyPixie(tMarkers[tNameplate.unit:GetId()].line)
+      tMarkers[tNameplate.unit:GetId()] = nil
+    end
+    ]]
+
     tNameplate.rearrange = true
   end
   if (bShowCastBar) then
     local bIsCcVulnerable = tNameplate.unit:GetInterruptArmorMax() >= 0
-    tNameplate.form:ToFront()
+    -- tNameplate.form:ToFront()
     tNameplate.containerCastBar:FindChild("BarCasting"):SetBarColor(bIsCcVulnerable and "xkcdDustyOrange" or _color("ff990000"))
     tNameplate.casting:SetProgress(tNameplate.unit:GetCastTotalPercent())
     tNameplate.containerCastBar:SetText(tNameplate.unit:GetCastName())
+
+    if (self:DistanceToUnit(tNameplate.unit) <= 25) then
+      self:DrawLine(tNameplate.unit:GetId(), tNameplate.unit)
+    end
   end
 end
 
@@ -2180,3 +2207,209 @@ function table.tostring(tbl)
   end
   return "{" .. table.concat(result, ",") .. "}"
 end
+
+
+----------------------------------------------------------------------------------------------
+-- Drawing
+-----------------------------------------------------------------------------------------------
+
+----- Lines
+function TwinkiePlates:DrawLine(itemId, unit)
+  if unit == nil then return end
+  local pPos = _player:GetPosition()
+  local playerVec = Vector3.New(pPos.x, pPos.y, pPos.z)
+  local tPos = unit:GetPosition()
+  local tVec = Vector3.New(tPos.x, tPos.y, tPos.z)
+  local targetPos = GameLib.WorldLocToScreenPoint(tVec)
+  local playerPos = GameLib.WorldLocToScreenPoint(playerVec)
+
+  --[[
+  if tOptions[itemId]:FindChild("DottedLineCheckBox"):IsChecked() then
+    for i = 1, 19 do
+      local fraction = i / 20
+      local pos = GameLib.WorldLocToScreenPoint(Vector3.InterpolateLinear(playerVec, tVec, fraction))
+
+      --- Outline
+      if tOptions[itemId]:FindChild("LineOutlineCheckBox"):IsChecked() then
+        tMarkers[itemId] = Overlay:AddPixie({bLine = false, strSprite = "WhiteCircle",
+          cr = ApolloColor.new("ff000000"),
+          loc = {nOffsets = {	pos.x - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2 - 1,
+            pos.y - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2 - 1,
+            pos.x + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) + 1,
+            pos.y + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) + 1}}})
+      end
+
+      --- Dots
+      tMarkers[itemId] = Overlay:AddPixie({bLine = false, strSprite = "WhiteCircle",
+        cr = ApolloColor.new(tOptions[itemId]:FindChild("ColorEditBox"):GetText()),
+        loc = {nOffsets = {	pos.x - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2,
+          pos.y - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2,
+          pos.x + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()),
+          pos.y + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText())}}})
+    end
+  else
+  ]]
+  --- Outline
+  -- if tOptions[itemId]:FindChild("LineOutlineCheckBox"):IsChecked() then
+
+
+  --if (not tMarkers[itemId]) then
+
+    --local tLine = {}
+
+    -- tLine.outline =
+    Overlay:AddPixie({
+      bLine = true,
+      fWidth = 5,
+      cr = ApolloColor.new("ff000000"),
+      loc = { nOffsets = { playerPos.x, playerPos.y, targetPos.x, targetPos.y } }
+    })
+
+    -- tLine.line =
+    Overlay:AddPixie({
+      bLine = true,
+      fWidth = 3,
+      cr = ApolloColor.new("red"),
+      loc = { nOffsets = { playerPos.x, playerPos.y, targetPos.x, targetPos.y } }
+    })
+
+    --tMarkers[itemId] = tLine
+
+    --[[else
+      Overlay:UpdatePixie(tMarkers[itemId].outline, {
+        bLine = true,
+        fWidth = 5,
+        cr = ApolloColor.new("ff000000"),
+        loc = { nOffsets = { playerPos.x, playerPos.y, targetPos.x, targetPos.y } }
+      })
+
+      --- Line
+      Overlay:UpdatePixie(tMarkers[itemId].line, {
+        bLine = true,
+        fWidth = 3,
+        cr = ApolloColor.new("red"),
+        loc = { nOffsets = { playerPos.x, playerPos.y, targetPos.x, targetPos.y } }
+      })
+    end
+  ]]
+    --end
+  end
+
+  ----- Circles
+  function TwinkiePlates:DrawCircle(itemId, unit)
+    if unit == nil then return end
+
+    local originPosition = unit:GetPosition()
+    local originPositionVector = Vector3.New(originPosition.x, originPosition.y, originPosition.z)
+
+    local dist = tOptions[itemId]:FindChild("CircleSizeText"):GetText()
+    local resolution = tOptions[itemId]:FindChild("CircleResolutionText"):GetText()
+
+    if GameLib.WorldLocToScreenPoint(originPositionVector).x < dist * -100 or GameLib.WorldLocToScreenPoint(originPositionVector).x > Overlay:GetWidth() + dist * 100 then return end
+    if GameLib.WorldLocToScreenPoint(originPositionVector).y < dist * -100 or GameLib.WorldLocToScreenPoint(originPositionVector).y > Overlay:GetHeight() + dist * 100 then return end
+
+    local sin = math.sin
+    local cos = math.cos
+    local rad = math.rad
+
+    local uface = unit:GetFacing()
+    local uangle = math.atan2(uface.x, uface.z)
+
+    local firstVector = Vector3.New(originPositionVector.x + dist * sin(uangle), originPositionVector.y, originPositionVector.z + dist * cos(uangle))
+    local previousVector = firstVector
+    local startPoint = GameLib.WorldLocToScreenPoint(previousVector)
+
+    if tOptions[itemId]:FindChild("DottedLineCheckBox"):IsChecked() then
+      for i = 1, resolution do
+        local rotation_point = uangle + rad(-360 / (resolution / i))
+
+        --- Outline
+        if tOptions[itemId]:FindChild("LineOutlineCheckBox"):IsChecked() then
+          tMarkers[itemId] = Overlay:AddPixie({
+            bLine = false,
+            strSprite = "WhiteCircle",
+            cr = ApolloColor.new("ff000000"),
+            loc = {
+              nOffsets = {
+                startPoint.x - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2 - 1,
+                startPoint.y - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2 - 1,
+                startPoint.x + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) + 1,
+                startPoint.y + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) + 1
+              }
+            }
+          })
+        end
+
+
+        --- Dots
+        tMarkers[itemId] = Overlay:AddPixie({
+          bLine = false,
+          strSprite = "WhiteCircle",
+          cr = ApolloColor.new(tOptions[itemId]:FindChild("ColorEditBox"):GetText()),
+          loc = {
+            nOffsets = {
+              startPoint.x - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2,
+              startPoint.y - tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) / 2,
+              startPoint.x + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()),
+              startPoint.y + tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText())
+            }
+          }
+        })
+
+        local currentVector = Vector3.New(originPositionVector.x + dist * sin(rotation_point), originPositionVector.y, originPositionVector.z + dist * cos(rotation_point))
+        startPoint = GameLib.WorldLocToScreenPoint(currentVector)
+      end
+    else
+      for i = 1, resolution do
+        local rotation_point = uangle + rad(-360 / (resolution / i))
+
+        local currentVector = Vector3.New(originPositionVector.x + dist * sin(rotation_point), originPositionVector.y, originPositionVector.z + dist * cos(rotation_point))
+        local endPoint = GameLib.WorldLocToScreenPoint(currentVector)
+
+        --- Outline
+        if tOptions[itemId]:FindChild("LineOutlineCheckBox"):IsChecked() then
+          tMarkers[itemId] = Overlay:AddPixie({
+            bLine = true,
+            fWidth = tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()) + 2,
+            cr = ApolloColor.new("ff000000"),
+            loc = { nOffsets = { startPoint.x, startPoint.y, endPoint.x, endPoint.y } }
+          })
+        end
+
+        --- Line
+        tMarkers[itemId] = Overlay:AddPixie({
+          bLine = true,
+          fWidth = tonumber(tOptions[itemId]:FindChild("LineWidthText"):GetText()),
+          cr = ApolloColor.new(tOptions[itemId]:FindChild("ColorEditBox"):GetText()),
+          loc = { nOffsets = { startPoint.x, startPoint.y, endPoint.x, endPoint.y } }
+        })
+
+        previousVector = currentVector
+        startPoint = endPoint
+      end
+    end
+  end
+
+  ----- Markers
+  function TwinkiePlates:DrawMarker(itemId, unit)
+    if unit == nil then return end
+
+    local tPos = unit:GetPosition()
+    local tVec = Vector3.New(tPos.x, tPos.y, tPos.z)
+    local targetPos = GameLib.WorldLocToScreenPoint(tVec)
+
+    if targetPos.x < 0 or targetPos.x > Overlay:GetWidth() then return end
+    if targetPos.y < 0 or targetPos.y > Overlay:GetHeight() then return end
+
+    local nSize = 30
+
+    -- ClientSprites:QuestJewel_SilverRing
+    -- Crafting_CoordSprites:sprCoord_AdditivePreviewTiny
+    -- CRB_MinimapSprites:sprMM_IndicatorRing
+
+    tMarkers[itemId] = Overlay:AddPixie({
+      cr = ApolloColor.new(tOptions[itemId]:FindChild("ColorEditBox"):GetText()),
+      strSprite = "ClientSprites:QuestJewel_SilverRing",
+      loc = { nOffsets = { targetPos.x - nSize, targetPos.y - nSize, targetPos.x + nSize, targetPos.y + nSize } }
+    })
+  end

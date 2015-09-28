@@ -601,4 +601,5 @@
             <Pixie LAnchorPoint="0" LAnchorOffset="10" TAnchorPoint="0" TAnchorOffset="114" RAnchorPoint="1" RAnchorOffset="0" BAnchorPoint="0" BAnchorOffset="164" Sprite="" BGColor="white" TextColor="ChannelCircle4" Rotation="0" Font="CRB_Header9_O" Text="Want to add/remove certain units? There&apos;s an exceptions list in the lua file. Simply add the unit and reload UI." TextId="" DT_VCENTER="0" DT_WORDBREAK="1"/>
         </Control>
     </Form>
+    <Form Class="WorldFixedWindow" LAnchorPoint="0" LAnchorOffset="0" TAnchorPoint="0" TAnchorOffset="0" RAnchorPoint="1" RAnchorOffset="0" BAnchorPoint="1" BAnchorOffset="-0" RelativeToClient="1" Font="Default" Text="" TooltipType="OnCursor" Template="Default" Border="0" Picture="0" SwallowMouseClicks="1" Moveable="0" Escapable="0" Overlapped="0" BGColor="ffffffff" TextColor="ffffffff" IgnoreMouse="1" Visible="0" TransitionShowHide="0" Name="Overlay" TooltipColor=""/>
 </Forms>
