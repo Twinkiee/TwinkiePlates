@@ -319,6 +319,7 @@ function TwinkiePlates:OnLoad()
     Apollo.RegisterEventHandler("Nameplacer_UnitNameplatePositionChanged", "OnNameplatePositionSettingChanged", self)
   end
 
+  self.perspectivePlates = Apollo.GetAddon("PerspectivePlates")
 
   self.xmlDoc = XmlDoc.CreateFromFile("TwinkiePlates.xml")
   Apollo.LoadSprites("TwinkiePlates_Sprites.xml")
@@ -853,6 +854,12 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if (tNameplate.rearrange) then
     tNameplate.form:ArrangeChildrenVert(1)
     tNameplate.rearrange = false
+  end
+
+  if self.perspectivePlates then
+    tNameplate.wndNameplate = tNameplate.form
+    tNameplate.unitOwner = tNameplate.unit
+    self._perspectivePlates:OnRequestedResize(tNameplate)
   end
 end
 
@@ -2078,6 +2085,13 @@ function TwinkiePlates:SetProgressBar(p_bar, p_current, p_max)
 end
 
 function TwinkiePlates:SetNameplateVerticalOffset(tNameplate, nVerticalOffset, nNameplacerVerticalOffset)
+
+  if self._perspectivePlates then
+    tNameplate.wndNameplate = tNameplate.form
+    tNameplate.unitOwner = tNameplate.unit
+    self._perspectivePlates:OnRequestedResize(tNameplate)
+    return
+  end
 
   -- Print("SetNameplateVerticalOffset; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
   tNameplate.form:SetAnchorOffsets(-200, -75 - nVerticalOffset - nNameplacerVerticalOffset, 200, 75 - nVerticalOffset - nNameplacerVerticalOffset)
