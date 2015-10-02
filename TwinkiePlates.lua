@@ -413,7 +413,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.type = strCategoryType
   tNameplate.color = "FFFFFFFF"
   tNameplate.targetNP = tTargetNameplate
-  tNameplate.hasHealth = self:HasHealth(unitNameplateOwner)
+  tNameplate.bHasHealth = self:HasHealth(unitNameplateOwner)
 
   if (tTargetNameplate) then
     local l_source = self.nameplates[unitNameplateOwner:GetId()]
@@ -440,7 +440,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.iconFlags = -1
   tNameplate.colorFlags = -1
   tNameplate.matrixFlags = -1
-  tNameplate.rearrange = false
+  tNameplate.bRearrange = false
 
   tNameplate.outOfRange = true
   tNameplate.occluded = unitNameplateOwner:IsOccluded()
@@ -564,7 +564,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
 
   -- tNameplate.shield:SetAnchorOffsets(0, _min(-l_shieldHeight, -3), 0, 0)
 
-  if (tNameplate.hasHealth) then
+  if (tNameplate.bHasHealth) then
     self:UpdateMainContainer(tNameplate)
   else
     tNameplate.wndHealthText:Show(false)
@@ -588,24 +588,6 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.form:Show(self:GetNameplateVisibility(tNameplate), true)
 
   self:UpdateTopContainer(tNameplate)
-
-
-  -- TEST CLEANSABLE FRAME
-  --[[
-  local nPixieId = tNameplate.containerMain:AddPixie({
-    bLine = false,
-    strSprite = "NPrimeNameplates_Sprites:FrameGlow",
-    cr = _typeColor["Cleanse"],
-    loc = {
-      fPoints = { 0.5, 0, 0.5, 0 },
-      nOffsets = { -62, -10, 62, 20 }
-    },
-    flagsText = {
-      DT_CENTER = true,
-      DT_VCENTER = true
-    }
-  })
-  --]]
 
   tNameplate.form:ArrangeChildrenVert(1)
 
@@ -832,9 +814,9 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
 
   self:UpdateArmor(tNameplate)
 
-  if (tNameplate.hasHealth
+  if (tNameplate.bHasHealth
       or (tNameplate.isPlayer and self:HasHealth(tNameplate.unit))) then
-    tNameplate.hasHealth = true
+    tNameplate.bHasHealth = true
     tNameplate.matrixFlags = self:GetMatrixFlags(tNameplate)
     self:UpdateMainContainer(tNameplate)
   end
@@ -851,9 +833,9 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     end
   end
 
-  if (tNameplate.rearrange) then
+  if (tNameplate.bRearrange) then
     tNameplate.form:ArrangeChildrenVert(1)
-    tNameplate.rearrange = false
+    tNameplate.bRearrange = false
   end
 
   if self.perspectivePlates then
@@ -889,7 +871,7 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
 
   if (tNameplate.containerMain:IsVisible() ~= l_visible) then
     tNameplate.containerMain:Show(l_visible)
-    tNameplate.rearrange = true
+    tNameplate.bRearrange = true
   end
 
   if (l_visible) then
@@ -963,17 +945,17 @@ function TwinkiePlates:UpdateTopContainer(p_nameplate)
 end
 
 function TwinkiePlates:UpdateMainContainerHeight(tNameplate)
-  local l_healthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT)
+  local bHealthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT) and tNameplate.bHasHealth
 
   -- Print("l_healthTextEnabled: " .. tostring(l_healthTextEnabled))
 
-  if (l_healthTextEnabled) then
+  if (bHealthTextEnabled) then
     self:UpdateMainContainerHeightWithHealthText(tNameplate)
   else
     self:UpdateMainContainerHeightWithoutHealthText(tNameplate)
   end
 
-  tNameplate.rearrange = true
+  tNameplate.bRearrange = true
 end
 
 function TwinkiePlates:UpdateNameplateColors(tNameplate)
@@ -1080,7 +1062,7 @@ function TwinkiePlates:GetMatrixFlags(tNameplate)
     end
   end
 
-  if (not tNameplate.hasHealth) then
+  if (not tNameplate.bHasHealth) then
     nFlags = ClearFlag(nFlags, F_HEALTH)
   end
 
@@ -1483,7 +1465,7 @@ function TwinkiePlates:UpdateTextNameGuild(p_nameplate)
   local l_hasGuild = l_guild ~= nil and (_strLen(l_guild) > 0)
   if (p_nameplate.textUnitGuild:IsVisible() ~= l_hasGuild) then
     p_nameplate.textUnitGuild:Show(l_hasGuild)
-    p_nameplate.rearrange = true
+    p_nameplate.bRearrange = true
   end
   if (l_hasGuild) then
     p_nameplate.textUnitGuild:SetTextRaw(l_guild)
@@ -1564,7 +1546,7 @@ function TwinkiePlates:RegisterCc(tNameplate, nCcId)
 
     -- tNameplate.wndContainerCc:SetText(_ccWhiteList[nCcId])
     -- tNameplate.wndContainerCc:Show(true)
-    -- tNameplate.rearrange = true
+    -- tNameplate.bRearrange = true
   end
 end
 
@@ -1599,7 +1581,7 @@ function TwinkiePlates:UpdateCc(tNameplate)
   if (tNameplate.wndContainerCc:IsVisible() ~= bShowCcBar) then
 
     tNameplate.wndContainerCc:Show(bShowCcBar)
-    tNameplate.rearrange = true
+    tNameplate.bRearrange = true
   end
 
   -- Print("tNameplate.nCcDurationMax: " .. tNameplate.nCcDurationMax .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration)
@@ -1642,7 +1624,7 @@ function TwinkiePlates:UpdateCasting(tNameplate)
 
     tNameplate.containerCastBar:Show(bShowCastBar)
 
-    tNameplate.rearrange = true
+    tNameplate.bRearrange = true
   end
   if (bShowCastBar) then
     local bIsCcVulnerable = tNameplate.unit:GetInterruptArmorMax() >= 0
@@ -2065,7 +2047,7 @@ function TwinkiePlates:SetCombatState(p_nameplate, p_inCombat)
 
   self:UpdateMainContainerHeight(p_nameplate)
 
-  -- p_nameplate.rearrange = true
+  -- p_nameplate.bRearrange = true
 end
 
 function TwinkiePlates:HasActivationState(unitNameplateOwner)
