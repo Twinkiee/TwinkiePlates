@@ -582,7 +582,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
 
   self:UpdateTextNameGuild(tNameplate)
   self:UpdateTextLevel(tNameplate)
-  self:UpdateArmor(tNameplate)
+  self:UpdateInterruptArmor(tNameplate)
   self:InitClassIcon(tNameplate)
 
   tNameplate.form:Show(self:GetNameplateVisibility(tNameplate), true)
@@ -808,7 +808,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     tNameplate.form:Show(bIsNameplateVisible, true)
   end
 
-  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1) ) then
+  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1)) then
     self:UpdateCc(tNameplate)
   end
 
@@ -827,10 +827,10 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   self:UpdateAnchoring(tNameplate)
 
   -- if (bShowCastingBar) then
-    self:UpdateCasting(tNameplate)
+  self:UpdateCasting(tNameplate)
   -- end
 
-  self:UpdateArmor(tNameplate)
+  self:UpdateInterruptArmor(tNameplate)
 
   if (tNameplate.hasHealth
       or (tNameplate.isPlayer and self:HasHealth(tNameplate.unit))) then
@@ -1575,7 +1575,7 @@ function TwinkiePlates:UpdateCc(tNameplate)
 
 
   local nCcNewDuration = tNameplate.nCcNewId >= 0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcNewId) or 0
-  tNameplate.nCcDuration = tNameplate.nCcActiveId >=0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
+  tNameplate.nCcDuration = tNameplate.nCcActiveId >= 0 and tNameplate.unit:GetCCStateTimeRemaining(tNameplate.nCcActiveId) or 0
 
   -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; tNameplate.nCcNewId: " .. tNameplate.nCcNewId .. "; nCcNewDuration: " .. nCcNewDuration)
 
@@ -1607,16 +1607,16 @@ function TwinkiePlates:UpdateCc(tNameplate)
   if (bShowCcBar) then
 
     local bUpdateCc = not tNameplate.nCcDurationMax
-                      or tNameplate.nCcActiveId == -1
-                      or (tNameplate.nCcNewId == Unit.CodeEnumCCState.Vulnerability)
-                      or ((nCcNewDuration and nCcNewDuration > tNameplate.nCcDuration)
-                          and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability)
+        or tNameplate.nCcActiveId == -1
+        or (tNameplate.nCcNewId == Unit.CodeEnumCCState.Vulnerability)
+        or ((nCcNewDuration and nCcNewDuration > tNameplate.nCcDuration)
+        and tNameplate.nCcActiveId ~= Unit.CodeEnumCCState.Vulnerability)
 
     -- Print("bUpdateCc: " .. tostring(bUpdateCc))
 
     -- New CC has a longer duration than the previous one (if any) and the current CC state is not a MoO
     if (bUpdateCc) then
-    -- if (false) then
+      -- if (false) then
 
       -- Print("tNameplate.nCcActiveId: " .. tNameplate.nCcActiveId .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration .. "; strCcNewName: " .. strCcNewName .. "; nCcNewDuration: " .. nCcNewDuration)
       -- Print("tNameplate.nCcDurationMax: " .. tNameplate.nCcDurationMax .. "; tNameplate.nCcDuration: " .. tNameplate.nCcDuration)
@@ -1653,27 +1653,32 @@ function TwinkiePlates:UpdateCasting(tNameplate)
   end
 end
 
-function TwinkiePlates:UpdateArmor(p_nameplate)
-  local l_armorMax = p_nameplate.unit:GetInterruptArmorMax()
-  local l_showArmor = GetFlag(p_nameplate.matrixFlags, F_ARMOR) and l_armorMax ~= 0
+function TwinkiePlates:UpdateInterruptArmor(tNameplate)
+  local nArmorMax = tNameplate.unit:GetInterruptArmorMax()
+  local nCurrentInterruptArmor = tNameplate.unit:GetInterruptArmorValue()
+  local bShowArmor = GetFlag(tNameplate.matrixFlags, F_ARMOR) and --[[nArmorMax]] ( nCurrentInterruptArmor ~= 0 or nArmorMax == -1)
 
-  if (p_nameplate.iconArmor:IsVisible() ~= l_showArmor) then
-    p_nameplate.iconArmor:Show(l_showArmor)
+  if (tNameplate.iconArmor:IsVisible() ~= bShowArmor) then
+    tNameplate.iconArmor:Show(bShowArmor)
   end
 
-  if (not l_showArmor) then return end
-
-  if (l_armorMax > 0) then
-    p_nameplate.iconArmor:SetText(p_nameplate.unit:GetInterruptArmorValue())
+  if (not bShowArmor) then
+    tNameplate.prevArmor = 0
+    return
   end
 
-  if (p_nameplate.prevArmor ~= l_armorMax) then
-    p_nameplate.prevArmor = l_armorMax
-    if (l_armorMax == -1) then
-      p_nameplate.iconArmor:SetText("")
-      p_nameplate.iconArmor:SetSprite("NPrimeNameplates_Sprites:IconArmor_02")
-    elseif (l_armorMax > 0) then
-      p_nameplate.iconArmor:SetSprite("NPrimeNameplates_Sprites:IconArmor")
+  if (nCurrentInterruptArmor --[[nArmorMax]] > 0) then
+    -- p_nameplate.iconArmor:SetText(p_nameplate.unit:GetInterruptArmorValue())
+    tNameplate.iconArmor:SetText(nCurrentInterruptArmor)
+  end
+
+  if (tNameplate.prevArmor ~= nArmorMax) then
+    tNameplate.prevArmor = nArmorMax
+    if (nArmorMax == -1) then
+      tNameplate.iconArmor:SetText("")
+      tNameplate.iconArmor:SetSprite("NPrimeNameplates_Sprites:IconArmor_02")
+    elseif (nArmorMax > 0) then
+      tNameplate.iconArmor:SetSprite("NPrimeNameplates_Sprites:IconArmor")
     end
   end
 end
@@ -1793,24 +1798,24 @@ end
 
 function TwinkiePlates:HasHealth(unitNameplateOwner)
 
-  if (unitNameplateOwner == nil)
-  then return false
+  if (unitNameplateOwner == nil) then
+    return false
   end
 
-  if (unitNameplateOwner:GetMouseOverType() == "Simple" or unitNameplateOwner:GetMouseOverType() == "SimpleCollidable")
-  then return false
+  if (unitNameplateOwner:GetMouseOverType() == "Simple" or unitNameplateOwner:GetMouseOverType() == "SimpleCollidable") then
+    return false
   end
 
-  if (unitNameplateOwner:IsDead())
-  then return false
+  if (unitNameplateOwner:IsDead()) then
+    return false
   end
 
-  if (unitNameplateOwner:GetMaxHealth() == nil)
-  then return false
+  if (unitNameplateOwner:GetMaxHealth() == nil) then
+    return false
   end
 
-  if (unitNameplateOwner:GetMaxHealth() == 0)
-  then return false
+  if (unitNameplateOwner:GetMaxHealth() == 0) then
+    return false
   end
 
   return true
