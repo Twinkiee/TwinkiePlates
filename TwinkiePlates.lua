@@ -859,7 +859,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if self.perspectivePlates then
     tNameplate.wndNameplate = tNameplate.form
     tNameplate.unitOwner = tNameplate.unit
-    self._perspectivePlates:OnRequestedResize(tNameplate)
+    self.perspectivePlates:OnRequestedResize(tNameplate)
   end
 end
 
@@ -2091,10 +2091,10 @@ end
 
 function TwinkiePlates:SetNameplateVerticalOffset(tNameplate, nVerticalOffset, nNameplacerVerticalOffset)
 
-  if self._perspectivePlates then
+  if self.perspectivePlates then
     tNameplate.wndNameplate = tNameplate.form
     tNameplate.unitOwner = tNameplate.unit
-    self._perspectivePlates:OnRequestedResize(tNameplate)
+    self.perspectivePlates:OnRequestedResize(tNameplate)
     return
   end
 
