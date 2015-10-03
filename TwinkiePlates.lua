@@ -1628,7 +1628,7 @@ function TwinkiePlates:UpdateCasting(tNameplate)
   end
   if (bShowCastBar) then
     local bIsCcVulnerable = tNameplate.unit:GetInterruptArmorMax() >= 0
-    tNameplate.form:ToFront()
+    -- tNameplate.form:ToFront()
     tNameplate.containerCastBar:FindChild("BarCasting"):SetBarColor(bIsCcVulnerable and "xkcdDustyOrange" or _color("ff990000"))
     tNameplate.casting:SetProgress(tNameplate.unit:GetCastTotalPercent())
     tNameplate.containerCastBar:SetText(tNameplate.unit:GetCastName())
