@@ -373,7 +373,7 @@ function TwinkiePlates:OnGroupUpdated(unitNameplateOwner)
   if (unitNameplateOwner == nil) then return end
   local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
   if (tNameplate ~= nil) then
-    local strPcOrNpc = tNameplate.isPlayer and "Pc" or "Npc"
+    local strPcOrNpc = tNameplate.bIsPlayer and "Pc" or "Npc"
     tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
     tNameplate.type = tNameplate.inGroup and "Group" or _dispStr[tNameplate.eDisposition] .. strPcOrNpc
   end
@@ -408,7 +408,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.unitClassID = bIsCharacter and unitNameplateOwner:GetClassId() or unitNameplateOwner:GetRank()
   tNameplate.bPet = self:IsPet(unitNameplateOwner)
   tNameplate.eDisposition = self:GetDispositionTo(unitNameplateOwner, _player)
-  tNameplate.isPlayer = bIsCharacter
+  tNameplate.bIsPlayer = bIsCharacter
 
   tNameplate.type = strCategoryType
   tNameplate.color = "FFFFFFFF"
@@ -574,7 +574,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   self:UpdateNameplateColors(tNameplate)
 
   tNameplate.containerIcons:DestroyAllPixies()
-  if (tNameplate.isPlayer) then
+  if (tNameplate.bIsPlayer) then
     self:UpdateIconsPC(tNameplate)
   else
     self:UpdateIconsNPC(tNameplate)
@@ -633,7 +633,7 @@ function TwinkiePlates:UpdateAnchoring(tNameplate, nCodeEnumFloaterLocation)
     end
   end
 
-  if (_matrix["ConfigDynamicVPos"] and not tNameplate.isPlayer) then
+  if (_matrix["ConfigDynamicVPos"] and not tNameplate.bIsPlayer) then
 
     local tOverhead = tNameplate.unit:GetOverheadAnchor()
     if (tOverhead ~= nil) then
@@ -779,7 +779,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if (tNameplate.onScreen) then
     local eDispositionToPlayer = self:GetDispositionTo(tNameplate.unit, _player)
     if (tNameplate.eDisposition ~= eDispositionToPlayer) then
-      local strPcOrNpc = tNameplate.isPlayer and "Pc" or "Npc"
+      local strPcOrNpc = tNameplate.bIsPlayer and "Pc" or "Npc"
       tNameplate.eDisposition = eDispositionToPlayer
       tNameplate.type = _dispStr[eDispositionToPlayer] .. strPcOrNpc
     end
@@ -798,7 +798,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     self:UpdateOpacity(tNameplate)
   end
 
-  if (_flags.contacts == 2 and tNameplate.isPlayer) then
+  if (_flags.contacts == 2 and tNameplate.bIsPlayer) then
     self:UpdateIconsPC(tNameplate)
   end
 
@@ -815,7 +815,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   self:UpdateInterruptArmor(tNameplate)
 
   if (tNameplate.bHasHealth
-      or (tNameplate.isPlayer and self:HasHealth(tNameplate.unit))) then
+      or (tNameplate.bIsPlayer and self:HasHealth(tNameplate.unit))) then
     tNameplate.bHasHealth = true
     tNameplate.matrixFlags = self:GetMatrixFlags(tNameplate)
     self:UpdateMainContainer(tNameplate)
@@ -828,7 +828,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
       self:UpdateNameplateColors(tNameplate)
     end
 
-    if (not tNameplate.isPlayer) then
+    if (not tNameplate.bIsPlayer) then
       self:UpdateIconsNPC(tNameplate)
     end
   end
@@ -973,7 +973,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
 
   tNameplate.color = l_textColor
 
-  if (tNameplate.isPlayer or tNameplate.bPet) then
+  if (tNameplate.bIsPlayer or tNameplate.bPet) then
     if (not bPvpFlagged and bHostile) then
       l_textColor = _dispColor[Unit.CodeEnumDisposition.Neutral]
       l_barColor = _dispColor[Unit.CodeEnumDisposition.Neutral]
@@ -1021,7 +1021,7 @@ function TwinkiePlates:GetColorFlags(tNameplate)
   if (tNameplate.lowHealth) then l_flags = SetFlag(l_flags, F_LOW_HP) end
 
   if (_matrix["ConfigAggroIndication"]) then
-    if (tNameplate.inCombat and not tNameplate.isPlayer and tNameplate.unit:GetTarget() ~= _player) then
+    if (tNameplate.inCombat and not tNameplate.bIsPlayer and tNameplate.unit:GetTarget() ~= _player) then
       l_flags = SetFlag(l_flags, F_AGGRO)
     end
   end
@@ -1452,9 +1452,9 @@ function TwinkiePlates:UpdateTextNameGuild(p_nameplate)
   local l_font = _matrix["ConfigAlternativeFont"] and _fontSecondary or _fontPrimary
   local l_width = _textWidth(l_font[l_fontSize].font, l_name .. " ")
 
-  if (l_showGuild and p_nameplate.isPlayer) then
+  if (l_showGuild and p_nameplate.bIsPlayer) then
     l_guild = l_unit:GetGuildName() and ("<" .. l_unit:GetGuildName() .. ">") or nil
-  elseif (l_showGuild and not l_hideAffiliation and not p_nameplate.isPlayer) then
+  elseif (l_showGuild and not l_hideAffiliation and not p_nameplate.bIsPlayer) then
     l_guild = l_unit:GetAffiliationName() or nil
   end
 
@@ -1488,7 +1488,7 @@ function TwinkiePlates:UpdateTextLevel(p_nameplate)
 end
 
 function TwinkiePlates:InitClassIcon(p_nameplate)
-  local l_table = p_nameplate.isPlayer and _playerClass or _npcRank
+  local l_table = p_nameplate.bIsPlayer and _playerClass or _npcRank
   local l_icon = l_table[p_nameplate.unitClassID]
   p_nameplate.iconUnit:Show(l_icon ~= nil)
   p_nameplate.iconUnit:SetSprite(l_icon ~= nil and l_icon or "")
@@ -1828,7 +1828,7 @@ function TwinkiePlates:GetNameplateVisibility(p_nameplate)
   if (p_nameplate.outOfRange) then return false end
 
   local l_isFriendly = p_nameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
-  if (not p_nameplate.isPlayer and l_isFriendly) then
+  if (not p_nameplate.bIsPlayer and l_isFriendly) then
     return p_nameplate.hasActivationState or p_nameplate.isObjective
   end
 
