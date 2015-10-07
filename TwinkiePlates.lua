@@ -847,27 +847,35 @@ end
 
 
 function TwinkiePlates:UpdateMainContainer(tNameplate)
-  local l_health = tNameplate.unit:GetHealth();
-  local l_healthMax = tNameplate.unit:GetMaxHealth();
-  local l_shield = tNameplate.unit:GetShieldCapacity();
-  local l_shieldMax = tNameplate.unit:GetShieldCapacityMax();
-  local l_absorb = tNameplate.unit:GetAbsorptionValue();
-  local l_fullHealth = l_health == l_healthMax;
-  local l_shieldFull = false;
-  local l_hiddenBecauseFull = false;
-  local l_isFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
+  local nHealth = tNameplate.unit:GetHealth();
+  local nHealthMax = tNameplate.unit:GetMaxHealth();
+  local nShield = tNameplate.unit:GetShieldCapacity();
+  local nShieldMax = tNameplate.unit:GetShieldCapacityMax();
+  local nAbsorb = tNameplate.unit:GetAbsorptionValue();
+  local bIsFullHealth = nHealth == nHealthMax;
+  local bIsShieldFull = false;
+  local bIsHiddenBecauseFull = false;
+  local bIsFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
 
   if (tNameplate.hasShield) then
-    l_shieldFull = l_shield == l_shieldMax;
+    bIsShieldFull = nShield == nShieldMax;
   end
 
   if (not tNameplate.targetNP) then
-    l_hiddenBecauseFull = (_matrix["ConfigSimpleWhenHealthy"] and l_fullHealth) or
-        (_matrix["ConfigSimpleWhenFullShield"] and l_shieldFull);
+    local bConfigHideWhenFullHealth = _matrix["ConfigSimpleWhenHealthy"]
+    local bConfigHideWhenFullShield = _matrix["ConfigSimpleWhenFullShield"]
+
+    bIsHiddenBecauseFull =
+      -- Check only health
+      (bConfigHideWhenFullHealth and bIsFullHealth) and (not bConfigHideWhenFullShield)
+      -- Check only health
+      or (bConfigHideWhenFullShield and bIsShieldFull) and (not bConfigHideWhenFullHealth)
+      -- Check health and shield
+      or (bConfigHideWhenFullHealth and bIsFullHealth) and (bConfigHideWhenFullShield and bIsShieldFull);
   end
 
   local l_matrixEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH)
-  local l_visible = l_matrixEnabled and not l_hiddenBecauseFull
+  local l_visible = l_matrixEnabled and not bIsHiddenBecauseFull
 
   if (tNameplate.containerMain:IsVisible() ~= l_visible) then
     tNameplate.containerMain:Show(l_visible)
@@ -875,30 +883,30 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
   end
 
   if (l_visible) then
-    if (l_health ~= tNameplate.prevHealth) then
-      local l_temp = l_isFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
+    if (nHealth ~= tNameplate.prevHealth) then
+      local l_temp = bIsFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
       if (_matrix[l_temp] ~= 0) then
         local l_cutoff = (_matrix[l_temp] / 100)
-        local l_healthPct = l_health / l_healthMax
+        local l_healthPct = nHealth / nHealthMax
         tNameplate.lowHealth = l_healthPct <= l_cutoff
       end
-      self:SetProgressBar(tNameplate.health, l_health, l_healthMax)
+      self:SetProgressBar(tNameplate.health, nHealth, nHealthMax)
     end
 
-    if (l_absorb > 0) then
+    if (nAbsorb > 0) then
       if (not tNameplate.absorb:IsVisible()) then
         tNameplate.absorb:Show(true)
       end
 
-      if (l_absorb ~= tNameplate.prevAbsorb) then
-        self:SetProgressBar(tNameplate.absorb, l_absorb, l_healthMax)
+      if (nAbsorb ~= tNameplate.prevAbsorb) then
+        self:SetProgressBar(tNameplate.absorb, nAbsorb, nHealthMax)
       end
     else
       tNameplate.absorb:Show(false)
     end
 
-    if (tNameplate.hasShield and l_shield ~= tNameplate.prevShield) then
-      self:SetProgressBar(tNameplate.shield, l_shield, l_shieldMax)
+    if (tNameplate.hasShield and nShield ~= tNameplate.prevShield) then
+      self:SetProgressBar(tNameplate.shield, nShield, nShieldMax)
     end
 
     local l_healthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT)
@@ -909,19 +917,19 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
       --if (_matrix["ConfigHealthText"] and not tNameplate.inCombat) then
       -- if (_matrix["ConfigHealthText"]) then
       local l_shieldText = ""
-      local l_healthText = self:GetNumber(l_health, l_healthMax)
+      local l_healthText = self:GetNumber(nHealth, nHealthMax)
 
-      if (tNameplate.hasShield and l_shield ~= 0) then
-        l_shieldText = " (" .. self:GetNumber(l_shield, l_shieldMax) .. ")"
+      if (tNameplate.hasShield and nShield ~= 0) then
+        l_shieldText = " (" .. self:GetNumber(nShield, nShieldMax) .. ")"
       end
 
       tNameplate.wndHealthText:SetText(l_healthText .. l_shieldText)
     end
   end
 
-  tNameplate.prevHealth = l_health
-  tNameplate.prevShield = l_shield
-  tNameplate.prevAbsorb = l_absorb
+  tNameplate.prevHealth = nHealth
+  tNameplate.prevShield = nShield
+  tNameplate.prevAbsorb = nAbsorb
 end
 
 function TwinkiePlates:UpdateTopContainer(p_nameplate)
@@ -2072,16 +2080,21 @@ function TwinkiePlates:SetProgressBar(p_bar, p_current, p_max)
 end
 
 function TwinkiePlates:SetNameplateVerticalOffset(tNameplate, nVerticalOffset, nNameplacerVerticalOffset)
-
-  if self.perspectivePlates then
-    tNameplate.wndNameplate = tNameplate.form
-    tNameplate.unitOwner = tNameplate.unit
-    self.perspectivePlates:OnRequestedResize(tNameplate)
-    return
-  end
-
   -- Print("SetNameplateVerticalOffset; nNameplacerVerticalOffset: " .. tostring(nNameplacerVerticalOffset))
   tNameplate.form:SetAnchorOffsets(-200, -75 - nVerticalOffset - nNameplacerVerticalOffset, 200, 75 - nVerticalOffset - nNameplacerVerticalOffset)
+
+  if self.perspectivePlates then
+
+    local bounds = {}
+    bounds.left = -200
+    bounds.top = -75 - nVerticalOffset - nNameplacerVerticalOffset
+    bounds.right = 200
+    bounds.bottom =  75 - nVerticalOffset - nNameplacerVerticalOffset
+
+    tNameplate.wndNameplate = tNameplate.form
+    tNameplate.unitOwner = tNameplate.unit
+    self.perspectivePlates:OnRequestedResize(tNameplate, 1, bounds)
+  end
 end
 
 function TwinkiePlates:AllocateNameplate(unitNameplateOwner)
