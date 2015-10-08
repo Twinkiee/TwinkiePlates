@@ -442,9 +442,9 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.matrixFlags = -1
   tNameplate.bRearrange = false
 
-  tNameplate.outOfRange = true
-  tNameplate.occluded = unitNameplateOwner:IsOccluded()
-  tNameplate.inCombat = unitNameplateOwner:IsInCombat()
+  tNameplate.bIsUnitOutOfRange = true
+  tNameplate.bIsOccluded = unitNameplateOwner:IsOccluded()
+  tNameplate.bIsInCombat = unitNameplateOwner:IsInCombat()
   tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
   tNameplate.isMounted = unitNameplateOwner:IsMounted()
   tNameplate.isObjective = false
@@ -537,7 +537,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
 
   tNameplate.textUnitName:SetData(unitNameplateOwner)
   tNameplate.health:SetData(unitNameplateOwner)
-  tNameplate.onScreen = tNameplate.form:IsOnScreen()
+  tNameplate.bIsOnScreen = tNameplate.form:IsOnScreen()
 
   self:UpdateOpacity(tNameplate)
   tNameplate.wndContainerCc:Show(false)
@@ -637,7 +637,7 @@ function TwinkiePlates:UpdateAnchoring(tNameplate, nCodeEnumFloaterLocation)
 
     local tOverhead = tNameplate.unit:GetOverheadAnchor()
     if (tOverhead ~= nil) then
-      bReposition = not tNameplate.occluded and tOverhead.y < 25
+      bReposition = not tNameplate.bIsOccluded and tOverhead.y < 25
     end
   end
 
@@ -766,17 +766,16 @@ end
 
 
 function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
-  -- local bShowCastingBar = GetFlag(tNameplate.matrixFlags, F_CASTING_BAR)
-  local bShowCcBar = GetFlag(tNameplate.matrixFlags, F_CC_BAR)
-  tNameplate.onScreen = tNameplate.form:IsOnScreen()
-  tNameplate.occluded = tNameplate.form:IsOccluded()
+
+  tNameplate.bIsOnScreen = tNameplate.form:IsOnScreen()
+  tNameplate.bIsOccluded = tNameplate.form:IsOccluded()
 
   if (bCyclicUpdate) then
     local nDistanceToUnit = self:DistanceToUnit(tNameplate.unit)
-    tNameplate.outOfRange = nDistanceToUnit > _matrix["SliderDrawDistance"]
+    tNameplate.bIsUnitOutOfRange = nDistanceToUnit > _matrix["SliderDrawDistance"]
   end
 
-  if (tNameplate.onScreen) then
+  if (tNameplate.bIsOnScreen) then
     local eDispositionToPlayer = self:GetDispositionTo(tNameplate.unit, _player)
     if (tNameplate.eDisposition ~= eDispositionToPlayer) then
       local strPcOrNpc = tNameplate.bIsPlayer and "Pc" or "Npc"
@@ -790,6 +789,13 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     tNameplate.form:Show(bIsNameplateVisible, true)
   end
 
+  if (not bIsNameplateVisible) then return end
+
+  ---------------------------------------------------------------------------
+
+  local bShowCcBar = GetFlag(tNameplate.matrixFlags, F_CC_BAR)
+  tNameplate.bIsInCombat = tNameplate.bIsInCombat == nil and tNameplate.unit:IsInCombat()
+
   if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1)) then
     self:UpdateCc(tNameplate)
   end
@@ -801,10 +807,6 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if (_flags.contacts == 2 and tNameplate.bIsPlayer) then
     self:UpdateIconsPC(tNameplate)
   end
-
-  if (not bIsNameplateVisible) then return end
-
-  ---------------------------------------------------------------------------
 
   self:UpdateAnchoring(tNameplate)
 
@@ -914,7 +916,7 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
     -- Print("l_healthTextEnabled: " .. tostring(l_healthTextEnabled))
 
     if (l_healthTextEnabled) then
-      --if (_matrix["ConfigHealthText"] and not tNameplate.inCombat) then
+      --if (_matrix["ConfigHealthText"] and not tNameplate.bIsInCombat) then
       -- if (_matrix["ConfigHealthText"]) then
       local l_shieldText = ""
       local l_healthText = self:GetNumber(nHealth, nHealthMax)
@@ -1029,7 +1031,7 @@ function TwinkiePlates:GetColorFlags(tNameplate)
   if (tNameplate.lowHealth) then l_flags = SetFlag(l_flags, F_LOW_HP) end
 
   if (_matrix["ConfigAggroIndication"]) then
-    if (tNameplate.inCombat and not tNameplate.bIsPlayer and tNameplate.unit:GetTarget() ~= _player) then
+    if (tNameplate.bIsInCombat and not tNameplate.bIsPlayer and tNameplate.unit:GetTarget() ~= _player) then
       l_flags = SetFlag(l_flags, F_AGGRO)
     end
   end
@@ -1059,7 +1061,7 @@ end
 
 function TwinkiePlates:GetMatrixFlags(tNameplate)
   local nFlags = 0
-  local bInCombat = tNameplate.inCombat
+  local bInCombat = tNameplate.bIsInCombat
   local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.type
 
   for i = 1, #_matrixCategories do
@@ -1814,9 +1816,9 @@ end
 function TwinkiePlates:GetNameplateVisibility(p_nameplate)
   if (_blinded) then return false end
 
-  if (not p_nameplate.onScreen) then return false end
+  if (not p_nameplate.bIsOnScreen) then return false end
 
-  -- if the nameplate has a target set (which probably means it's a player's nameplate)
+  -- if the nameplate has a target set
   if (p_nameplate.targetNP) then
     -- return true if the nameplate's unit is targeted by the player, false otherwise
     return _player:GetTarget() == p_nameplate.unit
@@ -1825,7 +1827,7 @@ function TwinkiePlates:GetNameplateVisibility(p_nameplate)
   -- return false if the nameplate is targeted by the player. Targeted nameplate is handled by _TargetNP
   if (_player:GetTarget() == p_nameplate.unit) then return false end
 
-  if (_matrix["ConfigOcclusionCulling"] and p_nameplate.occluded) then return false
+  if (_matrix["ConfigOcclusionCulling"] and p_nameplate.bIsOccluded) then return false
   end
 
   if (not GetFlag(p_nameplate.matrixFlags, F_NAMEPLATE)) then
@@ -1833,7 +1835,7 @@ function TwinkiePlates:GetNameplateVisibility(p_nameplate)
   end
 
   if (p_nameplate.unit:IsDead()) then return false end
-  if (p_nameplate.outOfRange) then return false end
+  if (p_nameplate.bIsUnitOutOfRange) then return false end
 
   local l_isFriendly = p_nameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
   if (not p_nameplate.bIsPlayer and l_isFriendly) then
@@ -2051,8 +2053,8 @@ function TwinkiePlates:SetCombatState(p_nameplate, p_inCombat)
   if (p_nameplate == nil) then return end
 
   -- If combat state changed
-  if (p_nameplate.inCombat ~= p_inCombat) then
-    p_nameplate.inCombat = p_inCombat
+  if (p_nameplate.bIsInCombat ~= p_inCombat) then
+    p_nameplate.bIsInCombat = p_inCombat
     p_nameplate.matrixFlags = self:GetMatrixFlags(p_nameplate)
     self:UpdateTextNameGuild(p_nameplate)
     self:UpdateTopContainer(p_nameplate)
