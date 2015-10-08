@@ -464,7 +464,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.form = Apollo.LoadForm(self.xmlDoc, "Nameplate", "InWorldHudStratum", self)
 
     tNameplate.containerTop = tNameplate.form:FindChild("ContainerTop")
-    tNameplate.containerMain = tNameplate.form:FindChild("ContainerMain")
+    tNameplate.wndContainerMain = tNameplate.form:FindChild("ContainerMain")
     tNameplate.containerIcons = tNameplate.form:FindChild("ContainerIcons")
 
     tNameplate.textUnitName = tNameplate.form:FindChild("TextUnitName")
@@ -516,7 +516,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.containerCastBar:SetAnchorOffsets(0, 0, 0, (l_font[l_fontSize].height * 0.75) + l_zoomSliderH)
     tNameplate.wndContainerCc:SetAnchorOffsets(0, 0, 0, (l_font[l_fontSize].height * 0.75) + l_zoomSliderH)
 
-    tNameplate.containerMain:SetFont(l_font[l_fontSize].font)
+    tNameplate.wndContainerMain:SetFont(l_font[l_fontSize].font)
 
     tNameplate.casting:SetAnchorOffsets(-l_zoomSliderW, (l_zoomSliderH * 0.25), l_zoomSliderW, l_zoomSliderH)
     tNameplate.cc:SetAnchorOffsets(-l_zoomSliderW, (l_zoomSliderH * 0.25), l_zoomSliderW, l_zoomSliderH)
@@ -541,13 +541,13 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
 
   self:UpdateOpacity(tNameplate)
   tNameplate.wndContainerCc:Show(false)
-  tNameplate.containerMain:Show(false)
+  tNameplate.wndContainerMain:Show(false)
   tNameplate.containerCastBar:Show(false)
   tNameplate.textUnitGuild:Show(false)
   tNameplate.iconArmor:Show(false)
   tNameplate.wndCleanseFrame:Show(false)
 
-  -- tNameplate.containerMain:SetText("")
+  -- tNameplate.wndContainerMain:SetText("")
   local l_heightMod = (tNameplate.hasShield and 1.3 or 1)
 
   local l_shieldHeightMod = _matrix["ConfigLargeShield"] and 0.5 or 0.35
@@ -559,8 +559,8 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.shield:Show(tNameplate.hasShield)
   --tNameplate.health:SetAnchorOffsets(-l_zoomSliderW, 3, l_zoomSliderW, l_zoomSliderH * l_heightMod + 3)
   -- tNameplate.health:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] tNameplate.hasShield and 0 or -3)
-  local mc_left, mc_top, mc_right, mc_bottom = tNameplate.containerMain:GetAnchorOffsets()
-  tNameplate.containerMain:SetAnchorOffsets(mc_left, mc_top, mc_right, tNameplate.hasShield and mc_top + 14 or mc_top + 11)
+  local mc_left, mc_top, mc_right, mc_bottom = tNameplate.wndContainerMain:GetAnchorOffsets()
+  tNameplate.wndContainerMain:SetAnchorOffsets(mc_left, mc_top, mc_right, tNameplate.hasShield and mc_top + 14 or mc_top + 11)
 
   -- tNameplate.shield:SetAnchorOffsets(0, _min(-l_shieldHeight, -3), 0, 0)
 
@@ -874,15 +874,15 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
       or (bConfigHideWhenFullHealth and bIsFullHealth) and (bConfigHideWhenFullShield and bIsShieldFull);
   end
 
-  local l_matrixEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH)
-  local l_visible = l_matrixEnabled and not bIsHiddenBecauseFull
+  local bConfigShowHealthBar = GetFlag(tNameplate.matrixFlags, F_HEALTH)
+  local bIsHealthBarVisible = bConfigShowHealthBar and not bIsHiddenBecauseFull and nHealth
 
-  if (tNameplate.containerMain:IsVisible() ~= l_visible) then
-    tNameplate.containerMain:Show(l_visible)
+  if (tNameplate.wndContainerMain:IsVisible() ~= bIsHealthBarVisible) then
+    tNameplate.wndContainerMain:Show(bIsHealthBarVisible)
     tNameplate.bRearrange = true
   end
 
-  if (l_visible) then
+  if (bIsHealthBarVisible) then
     if (nHealth ~= tNameplate.prevHealth) then
       local l_temp = bIsFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
       if (_matrix[l_temp] ~= 0) then
@@ -992,7 +992,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
       tNameplate.wndCleanseFrame:Show(true)
       tNameplate.wndCleanseFrame:SetBGColor(_typeColor["Cleanse"])
     elseif (tNameplate.wndCleanseFrame:IsVisible()) then
-      -- p_nameplate.containerMain:SetSprite("")
+      -- p_nameplate.wndContainerMain:SetSprite("")
       tNameplate.wndCleanseFrame:Show(false)
     end
   else
@@ -1000,7 +1000,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
       l_textColor = _typeColor["Special"]
     end
     if (tNameplate.wndCleanseFrame:IsVisible()) then
-      -- p_nameplate.containerMain:SetSprite("")
+      -- p_nameplate.wndContainerMain:SetSprite("")
       tNameplate.wndCleanseFrame:Show(false)
     end
   end
@@ -1169,7 +1169,7 @@ function TwinkiePlates:UpdateLegacyTargetPixie()
 
   if (_targetNP.textUnitLevel:IsVisible()) then l_width = l_width + _targetNP.textUnitLevel:GetWidth() end
   if (_targetNP.textUnitGuild:IsVisible()) then l_height = l_height + _targetNP.textUnitGuild:GetHeight() end
-  if (_targetNP.containerMain:IsVisible()) then l_height = l_height + _targetNP.containerMain:GetHeight() end
+  if (_targetNP.wndContainerMain:IsVisible()) then l_height = l_height + _targetNP.wndContainerMain:GetHeight() end
 
   l_height = (l_height / 2) + 30
   l_width = (l_width / 2) + 50
@@ -2137,12 +2137,12 @@ end
 
 function TwinkiePlates:UpdateMainContainerHeightWithoutHealthText(p_nameplate)
   -- Reset text
-  -- p_nameplate.containerMain:SetText("")
+  -- p_nameplate.wndContainerMain:SetText("")
 
   -- Set container height without text
   local l_zoomSliderH = _matrix["SliderBarScale"] / 10
   local l_shieldHeight = p_nameplate.hasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
-  -- p_nameplate.containerMain:SetAnchorOffsets(144, -5, -144, --[[l_shieldHeight]] 16)
+  -- p_nameplate.wndContainerMain:SetAnchorOffsets(144, -5, -144, --[[l_shieldHeight]] 16)
   p_nameplate.wndHealthText:Show(false)
 end
 
