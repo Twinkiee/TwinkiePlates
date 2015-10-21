@@ -525,7 +525,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.iconArmor:SetAnchorOffsets(-l_armorWidth, 0, l_armorWidth, 0)
   end
 
-  tNameplate.matrixFlags = self:GetMatrixFlags(tNameplate)
+  tNameplate.matrixFlags = self:UpdateFlagsByCombatState(tNameplate)
 
   self:UpdateAnchoring(tNameplate)
 
@@ -793,8 +793,11 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
 
   ---------------------------------------------------------------------------
 
+
+  tNameplate.bIsInCombat = tNameplate.unit:IsInCombat()
+  tNameplate.matrixFlags = self:UpdateFlagsByCombatState(tNameplate)
+
   local bShowCcBar = GetFlag(tNameplate.matrixFlags, F_CC_BAR)
-  tNameplate.bIsInCombat = tNameplate.bIsInCombat == nil and tNameplate.unit:IsInCombat()
 
   if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1)) then
     self:UpdateCc(tNameplate)
@@ -819,7 +822,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   if (tNameplate.bHasHealth
       or (tNameplate.bIsPlayer and self:HasHealth(tNameplate.unit))) then
     tNameplate.bHasHealth = true
-    tNameplate.matrixFlags = self:GetMatrixFlags(tNameplate)
+
     self:UpdateMainContainer(tNameplate)
   end
 
@@ -1059,7 +1062,7 @@ function TwinkiePlates:GetDispositionTo(unitSubject, unitObject)
   return unitSubject:GetDispositionTo(unitObject)
 end
 
-function TwinkiePlates:GetMatrixFlags(tNameplate)
+function TwinkiePlates:UpdateFlagsByCombatState(tNameplate)
   local nFlags = 0
   local bInCombat = tNameplate.bIsInCombat
   local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.type
@@ -2055,7 +2058,7 @@ function TwinkiePlates:SetCombatState(p_nameplate, p_inCombat)
   -- If combat state changed
   if (p_nameplate.bIsInCombat ~= p_inCombat) then
     p_nameplate.bIsInCombat = p_inCombat
-    p_nameplate.matrixFlags = self:GetMatrixFlags(p_nameplate)
+    p_nameplate.matrixFlags = self:UpdateFlagsByCombatState(p_nameplate)
     self:UpdateTextNameGuild(p_nameplate)
     self:UpdateTopContainer(p_nameplate)
   end
