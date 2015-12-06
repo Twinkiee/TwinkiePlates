@@ -102,7 +102,7 @@ local _paths =
   [3] = "Explorer",
 }
 
-local _matrixCategories =
+local _tUiElements =
 {
   "Nameplates",
   "Health",
@@ -117,7 +117,7 @@ local _matrixCategories =
   "TextBubbleFade",
 }
 
-local _matrixFilters =
+local _tUnitCategories =
 {
   "Self",
   "Target",
@@ -128,8 +128,6 @@ local _matrixFilters =
   "NeutralNpc",
   "HostilePc",
   "HostileNpc",
-
-  -- "Other",
 }
 
 local _matrixButtonSprites =
@@ -207,12 +205,12 @@ local F_ARMOR = 9
 local F_BUBBLE = 10
 
 
-local _player = nil
-local _playerPath = nil
-local _playerPos = nil
-local _blinded = nil
+local _player
+local _playerPath
+local _playerPos
+local _blinded
 
-local _targetNP = nil
+local _targetNP
 
 local _floor = math.floor
 local _min = math.min
@@ -233,7 +231,7 @@ local _and = bit32.band
 local _not = bit32.bnot
 local _xor = bit32.bxor
 
-local _configUI = nil
+local _configUI
 
 local _matrix = {}
 local _count = 0
@@ -305,6 +303,10 @@ function TwinkiePlates:OnLoad()
   Apollo.RegisterEventHandler("UnitGuildNameplateChanged", "OnUnitMainTextChanged", self)
   Apollo.RegisterEventHandler("UnitMemberOfGuildChange", "OnUnitMainTextChanged", self)
 
+  Apollo.RegisterEventHandler("UnitGibbed", "OnUnitGibbed", self)
+  Apollo.RegisterEventHandler("CombatLogDeath", "OnCombatLogDeath", self)
+  Apollo.RegisterEventHandler("CombatLogResurrect", "OnCombatLogResurrect", self)
+  Apollo.RegisterEventHandler("CharacterFlagsUpdated", "OnCharacterFlagsUpdated", self)
   Apollo.RegisterEventHandler("ApplyCCState", "OnCCStateApplied", self)
   Apollo.RegisterEventHandler("UnitGroupChanged", "OnGroupUpdated", self)
   Apollo.RegisterEventHandler("ChallengeUnlocked", "OnChallengeUnlocked", self)
@@ -374,8 +376,8 @@ function TwinkiePlates:OnGroupUpdated(unitNameplateOwner)
   local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
   if (tNameplate ~= nil) then
     local strPcOrNpc = tNameplate.bIsPlayer and "Pc" or "Npc"
-    tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
-    tNameplate.type = tNameplate.inGroup and "Group" or _dispStr[tNameplate.eDisposition] .. strPcOrNpc
+    tNameplate.bIsInGroup = unitNameplateOwner:IsInYourGroup()
+    tNameplate.strUnitCategory = tNameplate.bIsInGroup and "Group" or _dispStr[tNameplate.eDisposition] .. strPcOrNpc
   end
 end
 
@@ -387,12 +389,12 @@ function TwinkiePlates:OnUnitPvpFlagsChanged(unit)
 
   -- Update unit nameplate
   if (tNameplate) then
-    tNameplate.pvpFlagged = bPvpFlagged
+    tNameplate.bIsPvpFlagged = bPvpFlagged
   end
 
   -- Update target nameplate as well
   if (_targetNP and _player:GetTarget() == unit) then
-    _targetNP.pvpFlagged = bPvpFlagged
+    _targetNP.bIsPvpFlagged = bPvpFlagged
   end
 end
 
@@ -410,7 +412,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.eDisposition = self:GetDispositionTo(unitNameplateOwner, _player)
   tNameplate.bIsPlayer = bIsCharacter
 
-  tNameplate.type = strCategoryType
+  tNameplate.strUnitCategory = strCategoryType
   tNameplate.color = "FFFFFFFF"
   tNameplate.targetNP = tTargetNameplate
   tNameplate.bHasHealth = self:HasHealth(unitNameplateOwner)
@@ -429,12 +431,10 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.nCcDurationMax = 0
   end
 
-  tNameplate.lowHealth = false
+  tNameplate.bRefreshHealthShieldBar = false
+  tNameplate.bIsLowHealth = false
   tNameplate.healthy = false
-  tNameplate.prevHealth = 0
-  tNameplate.prevShield = 0
-  tNameplate.prevAbsorb = 0
-  tNameplate.prevArmor = -2
+  tNameplate.prevArmor = nil
   tNameplate.levelWidth = 1
 
   tNameplate.iconFlags = -1
@@ -445,12 +445,12 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.bIsUnitOutOfRange = true
   tNameplate.bIsOccluded = unitNameplateOwner:IsOccluded()
   tNameplate.bIsInCombat = unitNameplateOwner:IsInCombat()
-  tNameplate.inGroup = unitNameplateOwner:IsInYourGroup()
+  tNameplate.bIsInGroup = unitNameplateOwner:IsInYourGroup()
   tNameplate.isMounted = unitNameplateOwner:IsMounted()
   tNameplate.isObjective = false
-  tNameplate.pvpFlagged = unitNameplateOwner:IsPvpFlagged()
+  tNameplate.bIsPvpFlagged = unitNameplateOwner:IsPvpFlagged()
   tNameplate.hasActivationState = self:HasActivationState(unitNameplateOwner)
-  tNameplate.hasShield = unitNameplateOwner:GetShieldCapacityMax() ~= nil and unitNameplateOwner:GetShieldCapacityMax() ~= 0
+  tNameplate.bHasShield = unitNameplateOwner:GetShieldCapacityMax() ~= nil and unitNameplateOwner:GetShieldCapacityMax() ~= 0
 
 
   local l_zoomSliderW = _matrix["SliderBarScale"] / 2
@@ -477,7 +477,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.iconUnit = tNameplate.form:FindChild("IconUnit")
     tNameplate.iconArmor = tNameplate.form:FindChild("IconArmor")
 
-    tNameplate.health = tNameplate.form:FindChild("BarHealth")
+    tNameplate.wndHealthProgressBar = tNameplate.form:FindChild("BarHealth")
     tNameplate.wndHealthText = tNameplate.form:FindChild("TextHealth")
     tNameplate.shield = tNameplate.form:FindChild("BarShield")
     tNameplate.absorb = tNameplate.form:FindChild("BarAbsorb")
@@ -486,8 +486,8 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     tNameplate.wndCleanseFrame = tNameplate.form:FindChild("CleanseFrame")
 
     if (not _matrix["ConfigBarIncrements"]) then
-      tNameplate.health:SetFullSprite("Bar_02")
-      tNameplate.health:SetFillSprite("Bar_02")
+      tNameplate.wndHealthProgressBar:SetFullSprite("Bar_02")
+      tNameplate.wndHealthProgressBar:SetFillSprite("Bar_02")
       tNameplate.absorb:SetFullSprite("Bar_02")
       tNameplate.absorb:SetFillSprite("Bar_02")
     end
@@ -536,7 +536,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   end
 
   tNameplate.textUnitName:SetData(unitNameplateOwner)
-  tNameplate.health:SetData(unitNameplateOwner)
+  tNameplate.wndHealthProgressBar:SetData(unitNameplateOwner)
   tNameplate.bIsOnScreen = tNameplate.form:IsOnScreen()
 
   self:UpdateOpacity(tNameplate)
@@ -548,19 +548,19 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
   tNameplate.wndCleanseFrame:Show(false)
 
   -- tNameplate.wndContainerMain:SetText("")
-  local l_heightMod = (tNameplate.hasShield and 1.3 or 1)
+  local l_heightMod = (tNameplate.bHasShield and 1.3 or 1)
 
   local l_shieldHeightMod = _matrix["ConfigLargeShield"] and 0.5 or 0.35
-  local l_shieldHeight = tNameplate.health:GetHeight() * l_shieldHeightMod
-  local l_shield = tNameplate.hasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
+  local l_shieldHeight = tNameplate.wndHealthProgressBar:GetHeight() * l_shieldHeightMod
+  local l_shield = tNameplate.bHasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
 
   self:UpdateMainContainerHeight(tNameplate)
 
-  tNameplate.shield:Show(tNameplate.hasShield)
-  --tNameplate.health:SetAnchorOffsets(-l_zoomSliderW, 3, l_zoomSliderW, l_zoomSliderH * l_heightMod + 3)
-  -- tNameplate.health:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] tNameplate.hasShield and 0 or -3)
+  tNameplate.shield:Show(tNameplate.bHasShield)
+  --tNameplate.wndHealthProgressBar:SetAnchorOffsets(-l_zoomSliderW, 3, l_zoomSliderW, l_zoomSliderH * l_heightMod + 3)
+  -- tNameplate.wndHealthProgressBar:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] tNameplate.bHasShield and 0 or -3)
   local mc_left, mc_top, mc_right, mc_bottom = tNameplate.wndContainerMain:GetAnchorOffsets()
-  tNameplate.wndContainerMain:SetAnchorOffsets(mc_left, mc_top, mc_right, tNameplate.hasShield and mc_top + 14 or mc_top + 11)
+  tNameplate.wndContainerMain:SetAnchorOffsets(mc_left, mc_top, mc_right, tNameplate.bHasShield and mc_top + 14 or mc_top + 11)
 
   -- tNameplate.shield:SetAnchorOffsets(0, _min(-l_shieldHeight, -3), 0, 0)
 
@@ -568,6 +568,9 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, strCategory
     self:UpdateMainContainer(tNameplate)
   else
     tNameplate.wndHealthText:Show(false)
+
+    -- When a PC dyes we also hide the CC status container window
+    tNameplate.wndContainerCc:Show(false)
   end
 
   tNameplate.colorFlags = self:GetColorFlags(tNameplate)
@@ -611,8 +614,6 @@ function TwinkiePlates:UpdateAnchoring(tNameplate, nCodeEnumFloaterLocation)
   local tAnchorUnit = tNameplate.unit:IsMounted() and tNameplate.unit:GetUnitMount() or tNameplate.unit
   local bReposition = false
   local nCodeEnumFloaterLocation = nCodeEnumFloaterLocation
-
-
 
   if (self.nameplacer) then
     if (not nCodeEnumFloaterLocation) then
@@ -780,7 +781,7 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
     if (tNameplate.eDisposition ~= eDispositionToPlayer) then
       local strPcOrNpc = tNameplate.bIsPlayer and "Pc" or "Npc"
       tNameplate.eDisposition = eDispositionToPlayer
-      tNameplate.type = _dispStr[eDispositionToPlayer] .. strPcOrNpc
+      tNameplate.strUnitCategory = _dispStr[eDispositionToPlayer] .. strPcOrNpc
     end
   end
 
@@ -799,7 +800,9 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
 
   local bShowCcBar = GetFlag(tNameplate.matrixFlags, F_CC_BAR)
 
-  if (bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1)) then
+  if ((bShowCcBar and (tNameplate.nCcActiveId ~= -1 or tNameplate.nCcNewId ~= -1))
+      -- We need to hide the CC bar cause the combat state may have changed
+      or (not bShowCcBar and tNameplate.wndContainerCc:IsVisible())) then
     self:UpdateCc(tNameplate)
   end
 
@@ -856,13 +859,13 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
   local nHealthMax = tNameplate.unit:GetMaxHealth();
   local nShield = tNameplate.unit:GetShieldCapacity();
   local nShieldMax = tNameplate.unit:GetShieldCapacityMax();
-  local nAbsorb = tNameplate.unit:GetAbsorptionValue();
+
   local bIsFullHealth = nHealth == nHealthMax;
   local bIsShieldFull = false;
   local bIsHiddenBecauseFull = false;
   local bIsFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
 
-  if (tNameplate.hasShield) then
+  if (tNameplate.bHasShield) then
     bIsShieldFull = nShield == nShieldMax;
   end
 
@@ -872,11 +875,11 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
 
     bIsHiddenBecauseFull =
       -- Check only health
-      (bConfigHideWhenFullHealth and bIsFullHealth) and (not bConfigHideWhenFullShield)
-      -- Check only health
-      or (bConfigHideWhenFullShield and bIsShieldFull) and (not bConfigHideWhenFullHealth)
-      -- Check health and shield
-      or (bConfigHideWhenFullHealth and bIsFullHealth) and (bConfigHideWhenFullShield and bIsShieldFull);
+    (bConfigHideWhenFullHealth and bIsFullHealth) and (not bConfigHideWhenFullShield)
+        -- Check only shield
+        or (bConfigHideWhenFullShield and bIsShieldFull) and (not bConfigHideWhenFullHealth)
+        -- Check health and shield
+        or (bConfigHideWhenFullHealth and bIsFullHealth) and (bConfigHideWhenFullShield and bIsShieldFull);
   end
 
   local bConfigShowHealthBar = GetFlag(tNameplate.matrixFlags, F_HEALTH)
@@ -888,53 +891,45 @@ function TwinkiePlates:UpdateMainContainer(tNameplate)
   end
 
   if (bIsHealthBarVisible) then
-    if (nHealth ~= tNameplate.prevHealth) then
-      local l_temp = bIsFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
-      if (_matrix[l_temp] ~= 0) then
-        local l_cutoff = (_matrix[l_temp] / 100)
-        local l_healthPct = nHealth / nHealthMax
-        tNameplate.lowHealth = l_healthPct <= l_cutoff
-      end
-      self:SetProgressBar(tNameplate.health, nHealth, nHealthMax)
+
+    if (tNameplate.bHasShield) then
+      self:SetProgressBar(tNameplate.shield, nShield, nShieldMax)
     end
 
+    local strLowHealthCheck = bIsFriendly and "SliderLowHealthFriendly" or "SliderLowHealth"
+    if (_matrix[strLowHealthCheck] ~= 0) then
+      local nLowHealthThresholdCutoff = (_matrix[strLowHealthCheck] / 100)
+      local nHealthPercentage = nHealth / nHealthMax
+      tNameplate.bIsLowHealth = nHealthPercentage <= nLowHealthThresholdCutoff
+    end
+    self:SetProgressBar(tNameplate.wndHealthProgressBar, nHealth, nHealthMax)
+
+    tNameplate.bRefreshHealthShieldBar = false
+
+    local nAbsorb = tNameplate.unit:GetAbsorptionValue();
     if (nAbsorb > 0) then
       if (not tNameplate.absorb:IsVisible()) then
         tNameplate.absorb:Show(true)
       end
 
-      if (nAbsorb ~= tNameplate.prevAbsorb) then
-        self:SetProgressBar(tNameplate.absorb, nAbsorb, nHealthMax)
-      end
+      self:SetProgressBar(tNameplate.absorb, nAbsorb, nHealthMax)
     else
       tNameplate.absorb:Show(false)
     end
 
-    if (tNameplate.hasShield and nShield ~= tNameplate.prevShield) then
-      self:SetProgressBar(tNameplate.shield, nShield, nShieldMax)
-    end
+    local bHealthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT)
 
-    local l_healthTextEnabled = GetFlag(tNameplate.matrixFlags, F_HEALTH_TEXT)
+    if (bHealthTextEnabled) then
+      local strShieldText = ""
+      local strHealthText = self:GetNumber(nHealth, nHealthMax)
 
-    -- Print("l_healthTextEnabled: " .. tostring(l_healthTextEnabled))
-
-    if (l_healthTextEnabled) then
-      --if (_matrix["ConfigHealthText"] and not tNameplate.bIsInCombat) then
-      -- if (_matrix["ConfigHealthText"]) then
-      local l_shieldText = ""
-      local l_healthText = self:GetNumber(nHealth, nHealthMax)
-
-      if (tNameplate.hasShield and nShield ~= 0) then
-        l_shieldText = " (" .. self:GetNumber(nShield, nShieldMax) .. ")"
+      if (tNameplate.bHasShield and nShield ~= 0) then
+        strShieldText = " (" .. self:GetNumber(nShield, nShieldMax) .. ")"
       end
 
-      tNameplate.wndHealthText:SetText(l_healthText .. l_shieldText)
+      tNameplate.wndHealthText:SetText(strHealthText .. strShieldText)
     end
   end
-
-  tNameplate.prevHealth = nHealth
-  tNameplate.prevShield = nShield
-  tNameplate.prevAbsorb = nAbsorb
 end
 
 function TwinkiePlates:UpdateTopContainer(p_nameplate)
@@ -978,7 +973,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
   local nLowHp = GetFlag(tNameplate.colorFlags, F_LOW_HP)
 
 
-  local l_textColor = _typeColor[tNameplate.type]
+  local l_textColor = _typeColor[tNameplate.strUnitCategory]
   local l_barColor = _dispColor[tNameplate.eDisposition]
 
   local bHostile = tNameplate.eDisposition == Unit.CodeEnumDisposition.Hostile
@@ -1016,7 +1011,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
 
   tNameplate.textUnitName:SetTextColor(l_textColor)
   tNameplate.textUnitGuild:SetTextColor(l_textColor)
-  tNameplate.health:SetBarColor(l_barColor)
+  tNameplate.wndHealthProgressBar:SetBarColor(l_barColor)
 
   if (tNameplate.targetNP and tNameplate.targetMark ~= nil) then
     tNameplate.targetMark:SetBGColor(tNameplate.color)
@@ -1026,29 +1021,29 @@ end
 function TwinkiePlates:GetColorFlags(tNameplate)
   if (_player == nil) then return end
 
-  local l_flags = SetFlag(0, tNameplate.eDisposition)
+  local nFlags = SetFlag(0, tNameplate.eDisposition)
   local bIsFriendly = tNameplate.eDisposition == Unit.CodeEnumDisposition.Friendly
 
-  if (tNameplate.inGroup) then l_flags = SetFlag(l_flags, F_GROUP) end
-  if (tNameplate.pvpFlagged) then l_flags = SetFlag(l_flags, F_PVP) end
-  if (tNameplate.lowHealth) then l_flags = SetFlag(l_flags, F_LOW_HP) end
+  if (tNameplate.bIsInGroup) then nFlags = SetFlag(nFlags, F_GROUP) end
+  if (tNameplate.bIsPvpFlagged) then nFlags = SetFlag(nFlags, F_PVP) end
+  if (tNameplate.bIsLowHealth) then nFlags = SetFlag(nFlags, F_LOW_HP) end
 
   if (_matrix["ConfigAggroIndication"]) then
     if (tNameplate.bIsInCombat and not tNameplate.bIsPlayer and tNameplate.unit:GetTarget() ~= _player) then
-      l_flags = SetFlag(l_flags, F_AGGRO)
+      nFlags = SetFlag(nFlags, F_AGGRO)
     end
   end
 
   if (_matrix["ConfigCleanseIndicator"] and bIsFriendly) then
-    local l_debuffs = tNameplate.unit:GetBuffs()["arHarmful"]
-    for i = 1, #l_debuffs do
-      if (l_debuffs[i]["splEffect"]:GetClass() == Spell.CodeEnumSpellClass.DebuffDispellable) then
-        l_flags = SetFlag(l_flags, F_CLEANSE)
+    local tUnitDebuffs = tNameplate.unit:GetBuffs()["arHarmful"]
+    for i = 1, #tUnitDebuffs do
+      if (tUnitDebuffs[i]["splEffect"]:GetClass() == Spell.CodeEnumSpellClass.DebuffDispellable) then
+        nFlags = SetFlag(nFlags, F_CLEANSE)
       end
     end
   end
 
-  return l_flags
+  return nFlags
 end
 
 function TwinkiePlates:GetDispositionTo(unitSubject, unitObject)
@@ -1065,10 +1060,10 @@ end
 function TwinkiePlates:UpdateFlagsByCombatState(tNameplate)
   local nFlags = 0
   local bInCombat = tNameplate.bIsInCombat
-  local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.type
+  local strUnitCategoryType = tNameplate.targetNP and "Target" or tNameplate.strUnitCategory
 
-  for i = 1, #_matrixCategories do
-    local l_matrix = _matrix[_matrixCategories[i] .. strUnitCategoryType]
+  for i = 1, #_tUiElements do
+    local l_matrix = _matrix[_tUiElements[i] .. strUnitCategoryType]
     if ((type(l_matrix) ~= "number") or (l_matrix == 3) or
         (l_matrix + (bInCombat and 1 or 0) == 2)) then
       nFlags = SetFlag(nFlags, i - 1)
@@ -1300,6 +1295,14 @@ function TwinkiePlates:OnConfigure(strCmd, strArg)
   end
 end
 
+function TwinkiePlates:OnCombatLogDeath(tLogInfo)
+  Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
+end
+
+function TwinkiePlates:OnCombatLogResurrect(tLogInfo)
+  Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
+end
+
 -- Called from form
 function TwinkiePlates:OnConfigButton(p_wndHandler, p_wndControl, p_mouseButton)
   local l_name = p_wndHandler:GetName()
@@ -1364,8 +1367,8 @@ function TwinkiePlates:CheckMatrixIntegrity()
   if (_type(_matrix["SliderBarScale"]) ~= "number") then _matrix["SliderBarScale"] = 100 end
   if (_type(_matrix["SliderFontSize"]) ~= "number") then _matrix["SliderFontSize"] = 1 end
 
-  for i, category in _ipairs(_matrixCategories) do
-    for j, filter in _ipairs(_matrixFilters) do
+  for i, category in _ipairs(_tUiElements) do
+    for j, filter in _ipairs(_tUnitCategories) do
       local l_key = category .. filter
       if (type(_matrix[l_key]) ~= "number") then
         _matrix[l_key] = 3
@@ -1379,11 +1382,11 @@ function TwinkiePlates:InitConfiguration()
   _configUI:Show(false)
 
   local l_matrix = _configUI:FindChild("MatrixConfiguration")
-  -- local l_rowHeight = (1 / #_matrixCategories)
+  -- local l_rowHeight = (1 / #_tUiElements)
 
   -- Matrix layout
   self:DistributeMatrixColumns(l_matrix:FindChild("RowNames"))
-  for i, category in _ipairs(_matrixCategories) do
+  for i, category in _ipairs(_tUiElements) do
     local containerCategory = l_matrix:FindChild(category)
     -- containerCategory:SetAnchorPoints(0, l_rowHeight * (i - 1), 1, l_rowHeight * i)
     self:DistributeMatrixColumns(containerCategory, category)
@@ -1405,8 +1408,8 @@ function TwinkiePlates:InitConfiguration()
 end
 
 function TwinkiePlates:DistributeMatrixColumns(wndElementRow, p_categoryName)
-  -- local l_columns = (1 / #_matrixFilters)
-  for i, filter in _ipairs(_matrixFilters) do
+  -- local l_columns = (1 / #_tUnitCategories)
+  for i, filter in _ipairs(_tUnitCategories) do
     -- local l_left = l_columns * (i - 1)
     -- local l_right = l_columns * i
     local l_button = wndElementRow:FindChild(filter)
@@ -1505,6 +1508,11 @@ function TwinkiePlates:InitClassIcon(p_nameplate)
   local l_icon = l_table[p_nameplate.unitClassID]
   p_nameplate.iconUnit:Show(l_icon ~= nil)
   p_nameplate.iconUnit:SetSprite(l_icon ~= nil and l_icon or "")
+end
+
+function TwinkiePlates:OnCharacterFlagsUpdated(strRandomVar)
+
+  Print("OnCharacterFlagsUpdated; strRandomVar: " .. tostring(strRandomVar))
 end
 
 function TwinkiePlates:OnCCStateApplied(nCcId, unitNameplateOwner)
@@ -1651,7 +1659,7 @@ end
 function TwinkiePlates:UpdateInterruptArmor(tNameplate)
   local nArmorMax = tNameplate.unit:GetInterruptArmorMax()
   local nCurrentInterruptArmor = tNameplate.unit:GetInterruptArmorValue()
-  local bShowArmor = GetFlag(tNameplate.matrixFlags, F_ARMOR) and --[[nArmorMax]] ( nCurrentInterruptArmor ~= 0 or nArmorMax == -1)
+  local bShowArmor = GetFlag(tNameplate.matrixFlags, F_ARMOR) and --[[nArmorMax]] (nCurrentInterruptArmor ~= 0 or nArmorMax == -1)
 
   if (tNameplate.iconArmor:IsVisible() ~= bShowArmor) then
     tNameplate.iconArmor:Show(bShowArmor)
@@ -2094,7 +2102,7 @@ function TwinkiePlates:SetNameplateVerticalOffset(tNameplate, nVerticalOffset, n
     bounds.left = -200
     bounds.top = -75 - nVerticalOffset - nNameplacerVerticalOffset
     bounds.right = 200
-    bounds.bottom =  75 - nVerticalOffset - nNameplacerVerticalOffset
+    bounds.bottom = 75 - nVerticalOffset - nNameplacerVerticalOffset
 
     tNameplate.wndNameplate = tNameplate.form
     tNameplate.unitOwner = tNameplate.unit
@@ -2113,30 +2121,35 @@ function TwinkiePlates:AllocateNameplate(unitNameplateOwner)
 end
 
 function TwinkiePlates:OnUnitDestroyed(unitNameplateOwner)
-  local l_nameplate = self.nameplates[unitNameplateOwner:GetId()]
-  if (l_nameplate == nil) then return end
+  local tNameplate = self.nameplates[unitNameplateOwner:GetId()]
+  if (tNameplate == nil) then return end
 
   if (#self.pool < 50) then
-    l_nameplate.form:Show(false, true)
-    l_nameplate.form:SetUnit(nil)
-    l_nameplate.textUnitName:SetData(nil)
-    l_nameplate.health:SetData(nil)
-    l_nameplate.bIsVerticalOffsetUpdated = nil
-    _tableInsert(self.pool, l_nameplate)
+    tNameplate.form:Show(false, true)
+    tNameplate.form:SetUnit(nil)
+    tNameplate.textUnitName:SetData(nil)
+    tNameplate.wndHealthProgressBar:SetData(nil)
+    tNameplate.bIsVerticalOffsetUpdated = nil
+    _tableInsert(self.pool, tNameplate)
   else
-    l_nameplate.form:Destroy()
+    tNameplate.form:Destroy()
   end
   self.nameplates[unitNameplateOwner:GetId()] = nil
+end
+
+function TwinkiePlates:OnUnitGibbed(unitUpdated)
+
+  Print("Dead")
 end
 
 function TwinkiePlates:UpdateMainContainerHeightWithHealthText(p_nameplate)
   local l_fontSize = _matrix["SliderFontSize"]
   local l_zoomSliderH = _matrix["SliderBarScale"] / 10
-  local l_shieldHeight = p_nameplate.hasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
+  local l_shieldHeight = p_nameplate.bHasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
   local l_healthTextFont = _matrix["ConfigAlternativeFont"] and _fontSecondary or _fontPrimary
   local l_healthTextHeight = _matrix["ConfigHealthText"] and (l_healthTextFont[l_fontSize].height * 0.75) or 0
 
-  -- p_nameplate.health:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] p_nameplate.hasShield and 0 or -4)
+  -- p_nameplate.wndHealthProgressBar:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] p_nameplate.bHasShield and 0 or -4)
   p_nameplate.wndHealthText:Show(true)
 end
 
@@ -2146,7 +2159,7 @@ function TwinkiePlates:UpdateMainContainerHeightWithoutHealthText(p_nameplate)
 
   -- Set container height without text
   local l_zoomSliderH = _matrix["SliderBarScale"] / 10
-  local l_shieldHeight = p_nameplate.hasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
+  local l_shieldHeight = p_nameplate.bHasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
   -- p_nameplate.wndContainerMain:SetAnchorOffsets(144, -5, -144, --[[l_shieldHeight]] 16)
   p_nameplate.wndHealthText:Show(false)
 end
