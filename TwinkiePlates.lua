@@ -313,7 +313,7 @@ function TwinkiePlates:OnLoad()
   Apollo.RegisterEventHandler("UnitGuildNameplateChanged", "OnUnitMainTextChanged", self)
   Apollo.RegisterEventHandler("UnitMemberOfGuildChange", "OnUnitMainTextChanged", self)
 
-  Apollo.RegisterEventHandler("UnitGibbed", "OnUnitGibbed", self)
+--  Apollo.RegisterEventHandler("UnitGibbed", "OnUnitGibbed", self)
   Apollo.RegisterEventHandler("CombatLogDeath", "OnCombatLogDeath", self)
   Apollo.RegisterEventHandler("CombatLogResurrect", "OnCombatLogResurrect", self)
   --  Apollo.RegisterEventHandler("CharacterFlagsUpdated", "OnCharacterFlagsUpdated", self)
@@ -2114,11 +2114,6 @@ function TwinkiePlates:OnUnitDestroyed(unitNameplateOwner)
     tNameplate.wndNameplate:Destroy()
   end
   self.tNameplates[unitNameplateOwner:GetId()] = nil
-end
-
-function TwinkiePlates:OnUnitGibbed(unitUpdated)
-
-  Print("Dead")
 end
 
 function TwinkiePlates:UpdateMainContainerHeightWithHealthText(p_nameplate)
