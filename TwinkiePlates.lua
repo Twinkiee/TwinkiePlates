@@ -313,7 +313,7 @@ function TwinkiePlates:OnLoad()
   Apollo.RegisterEventHandler("UnitGuildNameplateChanged", "OnUnitMainTextChanged", self)
   Apollo.RegisterEventHandler("UnitMemberOfGuildChange", "OnUnitMainTextChanged", self)
 
---  Apollo.RegisterEventHandler("UnitGibbed", "OnUnitGibbed", self)
+  --  Apollo.RegisterEventHandler("UnitGibbed", "OnUnitGibbed", self)
   Apollo.RegisterEventHandler("CombatLogDeath", "OnCombatLogDeath", self)
   Apollo.RegisterEventHandler("CombatLogResurrect", "OnCombatLogResurrect", self)
   --  Apollo.RegisterEventHandler("CharacterFlagsUpdated", "OnCharacterFlagsUpdated", self)
@@ -557,22 +557,15 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, bIsTargetNa
   tNameplate.iconArmor:Show(false)
   tNameplate.wndCleanseFrame:Show(false)
 
-  -- tNameplate.wndContainerMain:SetText("")
-  local l_heightMod = (tNameplate.bHasShield and 1.3 or 1)
-
-  local l_shieldHeightMod = _tSettings["ConfigLargeShield"] and 0.5 or 0.35
-  local l_shieldHeight = tNameplate.wndHealthProgressBar:GetHeight() * l_shieldHeightMod
-  local l_shield = tNameplate.bHasShield and l_zoomSliderH * 1.3 or l_zoomSliderH
-
   self:UpdateMainContainerHeight(tNameplate)
 
   tNameplate.wndShieldBar:Show(tNameplate.bHasShield)
-  --tNameplate.wndHealthProgressBar:SetAnchorOffsets(-l_zoomSliderW, 3, l_zoomSliderW, l_zoomSliderH * l_heightMod + 3)
-  -- tNameplate.wndHealthProgressBar:SetAnchorOffsets(0, 0, 0, --[[l_shieldHeight + l_healthTextHeight]] tNameplate.bHasShield and 0 or -3)
   local mc_left, mc_top, mc_right, mc_bottom = tNameplate.wndContainerMain:GetAnchorOffsets()
   tNameplate.wndContainerMain:SetAnchorOffsets(mc_left, mc_top, mc_right, tNameplate.bHasShield and mc_top + 14 or mc_top + 11)
 
-  -- tNameplate.wndShieldBar:SetAnchorOffsets(0, _min(-l_shieldHeight, -3), 0, 0)
+  if (_tSettings["ConfigLargeShield"]) then
+    tNameplate.wndShieldBar:SetAnchorOffsets(0, 8, 0, 14)
+  end
 
   if (tNameplate.bHasHealth) then
     self:UpdateMainContainer(tNameplate)
