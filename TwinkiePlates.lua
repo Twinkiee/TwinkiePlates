@@ -431,10 +431,9 @@ function TwinkiePlates:OnLoad()
   self.buffer = {}
   self.challenges = ChallengesLib.GetActiveChallengeList()
 
-  Apollo.RegisterSlashCommand("npnpdebug", "OnNPrimeNameplatesCommandDebug", self)
   Apollo.RegisterEventHandler("VarChange_FrameCount", "OnDebuggerUnit", self)
 
-  Apollo.RegisterSlashCommand("npnp", "OnConfigure", self)
+  Apollo.RegisterSlashCommand("tp", "OnConfigure", self)
   Apollo.RegisterEventHandler("ShowTwinkiePlatesConfigurationWnd", "OnConfigure", self)
 
   Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
@@ -594,7 +593,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, bIsTargetNa
   tNameplate.levelWidth = 1
 
   tNameplate.iconFlags = -1
-  tNameplate.colorFlags = -1
+  tNameplate.nNonCombatStateFlags = -1
   tNameplate.nMatrixFlags = -1
   tNameplate.bRearrange = false
 
@@ -640,6 +639,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, bIsTargetNa
     tNameplate.wndAbsorbBar = tNameplate.wndNameplate:FindChild("BarAbsorb")
     tNameplate.wndCcBar = tNameplate.wndNameplate:FindChild("BarCC")
     tNameplate.wndCleanseFrame = tNameplate.wndNameplate:FindChild("CleanseFrame")
+    tNameplate.wndCleanseFrame:SetBGColor(_tFromSettingToColor["Cleanse"])
 
     if (not _tSettings["ConfigBarIncrements"]) then
       tNameplate.wndHealthProgressBar:SetFullSprite("Bar_02")
@@ -721,8 +721,8 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, bIsTargetNa
     tNameplate.wndContainerCc:Show(false)
   end
 
-  tNameplate.colorFlags = self:GetColorFlags(tNameplate)
-  self:UpdateNameplateColors(tNameplate)
+  tNameplate.nNonCombatStateFlags = self:GetNonCombatStateFlags(tNameplate)
+  self:UpdateNonCombatStateElements(tNameplate)
 
   tNameplate.containerIcons:DestroyAllPixies()
   if (tNameplate.bIsPlayer) then
@@ -982,10 +982,10 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
   end
 
   if (bCyclicUpdate) then
-    local nColorFlags = self:GetColorFlags(tNameplate)
-    if (tNameplate.colorFlags ~= nColorFlags) then
-      tNameplate.colorFlags = nColorFlags
-      self:UpdateNameplateColors(tNameplate)
+    local nNonCombatStateFlags = self:GetNonCombatStateFlags(tNameplate)
+    if (tNameplate.nNonCombatStateFlags ~= nNonCombatStateFlags) then
+      tNameplate.nNonCombatStateFlags = nNonCombatStateFlags
+      self:UpdateNonCombatStateElements(tNameplate)
     end
 
     if (not tNameplate.bIsPlayer) then
@@ -1124,11 +1124,11 @@ function TwinkiePlates:UpdateHealthShieldText(tNameplate)
 --  tNameplate.bRearrange = true
 end
 
-function TwinkiePlates:UpdateNameplateColors(tNameplate)
-  local bPvpFlagged = _unitPlayer:IsPvpFlagged() and GetFlag(tNameplate.colorFlags, F_PVP)
-  local bNoAggroSettingEnabled = GetFlag(tNameplate.colorFlags, F_AGGRO)
-  local bIsShowCleansableSettingEnabled = GetFlag(tNameplate.colorFlags, F_CLEANSE)
-  local bIsLowHpSettingEnabled = GetFlag(tNameplate.colorFlags, F_LOW_HP)
+function TwinkiePlates:UpdateNonCombatStateElements(tNameplate)
+  local bPvpFlaggedSettingEnabled = _unitPlayer:IsPvpFlagged() and GetFlag(tNameplate.nNonCombatStateFlags, F_PVP)
+  local bNoAggroSettingEnabled = GetFlag(tNameplate.nNonCombatStateFlags, F_AGGRO)
+  local bIsShowCleansableSettingEnabled = GetFlag(tNameplate.nNonCombatStateFlags, F_CLEANSE)
+  local bIsLowHpSettingEnabled = GetFlag(tNameplate.nNonCombatStateFlags, F_LOW_HP)
 
 
   local colorNameplateText = _tFromSettingToColor[tNameplate.strUnitCategory]
@@ -1140,16 +1140,17 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
   tNameplate.color = colorNameplateText
 
   if (tNameplate.bIsPlayer or tNameplate.bPet) then
-    if (not bPvpFlagged and bHostile) then
+    if (not bPvpFlaggedSettingEnabled and bHostile) then
       colorNameplateText = _dispColor[Unit.CodeEnumDisposition.Neutral]
       colorNameplateBar = _dispColor[Unit.CodeEnumDisposition.Neutral]
       tNameplate.color = colorNameplateText
     end
 
-    if (bIsShowCleansableSettingEnabled and bIsFriendly and not tNameplate.wndCleanseFrame:IsVisible()) then
+    if (bIsShowCleansableSettingEnabled and bIsFriendly--[[ and not tNameplate.wndCleanseFrame:IsVisible()]]) then
       tNameplate.wndCleanseFrame:Show(true)
       tNameplate.wndCleanseFrame:SetBGColor(_tFromSettingToColor["Cleanse"])
-    elseif (tNameplate.wndCleanseFrame:IsVisible()) then
+--    elseif (tNameplate.wndCleanseFrame:IsVisible()) then
+    else
       tNameplate.wndCleanseFrame:Show(false)
     end
   else
@@ -1157,7 +1158,6 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
       colorNameplateText = _tFromSettingToColor["NoAggro"]
     end
     if (tNameplate.wndCleanseFrame:IsVisible()) then
-      -- p_nameplate.wndContainerMain:SetSprite("")
       tNameplate.wndCleanseFrame:Show(false)
     end
   end
@@ -1175,7 +1175,7 @@ function TwinkiePlates:UpdateNameplateColors(tNameplate)
   end
 end
 
-function TwinkiePlates:GetColorFlags(tNameplate)
+function TwinkiePlates:GetNonCombatStateFlags(tNameplate)
   if (_unitPlayer == nil) then return
   end
 
@@ -1372,7 +1372,7 @@ function TwinkiePlates:OnPlayerMainTextChanged()
 end
 
 function TwinkiePlates:OnNameplatePositionSettingChanged(strUnitName, tNameplatePositionSetting)
-  -- Print("[nPrimeNameplates] OnNameplatePositionSettingChanged; strUnitName: " .. strUnitName .. "; tNameplatePositionSetting: " .. table.tostring(tNameplatePositionSetting))
+--  Print("[TwinkiePlates] OnNameplatePositionSettingChanged; strUnitName: " .. strUnitName .. "; tNameplatePositionSetting: " .. table.tostring(tNameplatePositionSetting))
 
   if (not tNameplatePositionSetting or (not tNameplatePositionSetting["nAnchorId"] and not tNameplatePositionSetting["nVerticalOffset"])) then return
   end
