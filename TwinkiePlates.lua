@@ -364,7 +364,12 @@ local _tPvpZones = {
   [2193] = false, -- Test
   [2177] = true, -- Halls of the Bloodsworn
   [4472] = true, -- Halls of the Bloodsworn
-  [103] = true, -- Daggerstone Pass
+  [4654] = true, -- Daggerstone Pass
+  [4456] = true, -- Daggerstone Pass
+  [4457] = true, -- Daggerstone Pass
+  [4458] = true, -- Daggerstone Pass
+  [4459] = true, -- Daggerstone Pass
+  [4460] = true, -- Daggerstone Pass
 }
 
 local _unitPlayer
@@ -662,6 +667,7 @@ function TwinkiePlates:InitNameplate(unitNameplateOwner, tNameplate, bIsTargetNa
     tNameplate.wndAbsorbBar = tNameplate.wndNameplate:FindChild("BarAbsorb")
     tNameplate.wndCcBar = tNameplate.wndNameplate:FindChild("BarCC")
     tNameplate.wndCleanseFrame = tNameplate.wndNameplate:FindChild("CleanseFrame")
+
     tNameplate.wndCleanseFrame:SetBGColor(_tFromSettingToColor["Cleanse"])
 
     if (not _tSettings["ConfigBarIncrements"]) then
@@ -1540,6 +1546,8 @@ function TwinkiePlates:OnConfigButton(wndHandler, wndControl, eMouseButton)
     RequestReloadUI()
   elseif (string.starts(strHandlerName, "Config")) then
     _tSettings[strHandlerName] = wndHandler:IsChecked()
+  elseif (strHandlerName == "ProfileButtonAdd") then
+    _wndConfigUi:FindChild("ProfilesGrid"):AddRow("Test")
   end
 end
 
