@@ -570,7 +570,7 @@ end
 
 function TwinkiePlates:OnSubZoneChanged(nZoneId, strSubZoneName)
 
-  Print("TwinkiePlates:OnSubZoneChanged; Current zone: " .. tostring(nZoneId))
+  -- Print("TwinkiePlates:OnSubZoneChanged; Current zone: " .. tostring(nZoneId))
 
   self:UpdateCurrentZoneInfo(nZoneId)
 end
@@ -843,7 +843,7 @@ function TwinkiePlates:IsInCombat(tNameplate)
 
   --  Print("TwinkiePlates: _tPvpZones[self.nCurrentZoneId]: " .. tostring(_tPvpZones[self.nCurrentZoneId]))
   if (not self.nCurrentZoneId) then
-    Print("TwinkiePlates:IsInCombat; Updating current zone!")
+    -- Print("TwinkiePlates:IsInCombat; Updating current zone!")
     self:UpdateCurrentZoneInfo(GameLib.GetCurrentZoneId())
   end
 
@@ -986,22 +986,22 @@ function TwinkiePlates:UpdateNameplate(tNameplate, bCyclicUpdate)
 
   if (tNameplate.bIsInCombat ~= bIsInCombat) then
     if (tNameplate.unitNameplateOwner == _unitPlayer) then
-      Print("Updating combat state")
+      -- Print("Updating combat state")
     end
 
     tNameplate.bIsInCombat = bIsInCombat
 
     if (tNameplate.unitNameplateOwner == _unitPlayer) then
-      Print("tNameplate.bIsInCombat: " .. tostring(tNameplate.bIsInCombat))
+      -- Print("tNameplate.bIsInCombat: " .. tostring(tNameplate.bIsInCombat))
     end
 
     if (tNameplate.unitNameplateOwner == _unitPlayer) then
-      Print("Combat state flags: " .. tostring(tNameplate.nMatrixFlags))
+      -- Print("Combat state flags: " .. tostring(tNameplate.nMatrixFlags))
     end
     tNameplate.nMatrixFlags = self:GetCombatStateDependentFlags(tNameplate)
 
     if (tNameplate.unitNameplateOwner == _unitPlayer) then
-      Print("New combat state flags: " .. tostring(tNameplate.nMatrixFlags))
+      -- Print("New combat state flags: " .. tostring(tNameplate.nMatrixFlags))
     end
     self:UpdateTextNameGuild(tNameplate)
     self:UpdateTopContainer(tNameplate)
@@ -1234,7 +1234,7 @@ function TwinkiePlates:GetCombatStateDependentFlags(tNameplate)
   local strUnitCategoryType = tNameplate.strUnitCategory
 
   if (tNameplate.unitNameplateOwner == _unitPlayer) then
-    Print("GetCombatStateDependentFlags;  tNameplate.bIsIncombat:" .. tostring(tNameplate.bIsInCombat))
+    -- Print("GetCombatStateDependentFlags;  tNameplate.bIsIncombat:" .. tostring(tNameplate.bIsInCombat))
   end
 
   for strUiElement in _pairs(_tUiElements) do
@@ -1516,18 +1516,18 @@ function TwinkiePlates:OnConfigure(strCmd, strArg)
   if (strArg == "occlusion") then
     _tSettings["ConfigOcclusionCulling"] = not _tSettings["ConfigOcclusionCulling"]
     local l_occlusionString = _tSettings["ConfigOcclusionCulling"] and "<Enabled>" or "<Disabled>"
-    Print("[nPrimeNameplates] Occlusion culling " .. l_occlusionString)
+    -- Print("[nPrimeNameplates] Occlusion culling " .. l_occlusionString)
   elseif ((strArg == nil or strArg == "") and _wndConfigUi ~= nil) then
     _wndConfigUi:Show(not _wndConfigUi:IsVisible(), true)
   end
 end
 
 function TwinkiePlates:OnCombatLogDeath(tLogInfo)
-  Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
+  -- Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
 end
 
 function TwinkiePlates:OnCombatLogResurrect(tLogInfo)
-  Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
+  -- Print("tLogInfo: " .. tLogInfo.unitCaster:GetName())
 end
 
 -- Called from form
