@@ -444,13 +444,13 @@ function TwinkiePlates:OnLoad()
   self.buffer = {}
   self.challenges = ChallengesLib.GetActiveChallengeList()
 
-  Apollo.RegisterEventHandler("VarChange_FrameCount", "OnDebuggerUnit", self)
+  Apollo.RegisterEventHandler("NextFrame", "OnDebuggerUnit", self)
 
   Apollo.RegisterSlashCommand("tp", "OnConfigure", self)
   Apollo.RegisterEventHandler("ShowTwinkiePlatesConfigurationWnd", "OnConfigure", self)
 
   Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
-  Apollo.RegisterEventHandler("VarChange_FrameCount", "OnFrame", self)
+  Apollo.RegisterEventHandler("NextFrame", "OnFrame", self)
   Apollo.RegisterEventHandler("ChangeWorld", "OnChangeWorld", self)
   Apollo.RegisterEventHandler("SubZoneChanged", "OnSubZoneChanged", self)
 
